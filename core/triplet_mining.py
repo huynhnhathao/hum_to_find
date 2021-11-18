@@ -4,7 +4,8 @@ __all__ = ['batch_hard_triplet_loss', 'batch_all_triplet_loss']
 # Cell
 import torch
 import torch.nn.functional as F
-def _pairwise_distances(embeddings, squared=False):
+def _pairwise_distances(embeddings: torch.Tensor,
+                        squared: bool=False) -> torch.Tensor:
     """Compute the 2D matrix of distances between all the embeddings.
     Args:
         embeddings: tensor of shape (batch_size, embed_dim)
@@ -23,6 +24,9 @@ def _pairwise_distances(embeddings, squared=False):
     # Compute the pairwise distance matrix as we have:
     # ||a - b||^2 = ||a||^2  - 2 <a, b> + ||b||^2
     # shape (batch_size, batch_size)
+
+    print(square_norm.unsqueeze(0).size())
+    print(square_norm.unsqueeze(1).size())
     distances = square_norm.unsqueeze(0) - 2.0 * dot_product + square_norm.unsqueeze(1)
 
     # Because of computation errors, some distances might be negative so we put everything >= 0.0
@@ -40,7 +44,7 @@ def _pairwise_distances(embeddings, squared=False):
 
 def _get_triplet_mask(labels):
     """Return a 3D mask where mask[a, p, n] is True iff the triplet (a, p, n) is valid.
-    A triplet (i, j, k) is valid if:
+    A triplet (i, j, k) is valid if :
         - i, j, k are distinct
         - labels[i] == labels[j] and labels[i] != labels[k]
     Args:
@@ -186,3 +190,8 @@ def batch_all_triplet_loss(labels, embeddings, margin, squared=False):
     triplet_loss = triplet_loss.sum() / (num_positive_triplets + 1e-16)
 
     return triplet_loss, fraction_positive_triplets
+
+
+
+if __name__ == '__main__':
+    _pairwise_distances(torch.Tensor(torch.rand(10, 10)))
