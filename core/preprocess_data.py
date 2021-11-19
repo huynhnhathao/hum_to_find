@@ -5,16 +5,34 @@ from torch.utils.data import Dataset
 import pandas as pd
 import torchaudio
 
+# TODO: instead of cut the song sample on the right, let's cut it at random position
+# inside the allowed range of samples, consider it as data augmentation
 
-class MyDataset(Dataset):
+
+# TODO: cache transformed data into disk
+# Test everything here, when run we bring it to colab to run on GPU
+
+class HumDataset(Dataset):
 
     def __init__(self,
-                 annotations_file,
-                 audio_dir,
+                 annotations_file: str,
+                 audio_dir: str,
                  transformation,
-                 target_sample_rate,
-                 num_samples,
-                 device):
+                 target_sample_rate: int,
+                 num_samples: int,
+                 device: str) -> None:
+
+        """
+        Args:
+            annotations: path to the csv file contains label and path info
+            audio_dir: path to the train dir
+            transformation: transformation object
+            target_sample_rate: the sample rate want to use
+            num_sample: number of sample for each audio file
+            device: cpu or cuda
+
+        """
+        
         self.annotations = pd.read_csv(annotations_file)
         self.audio_dir = audio_dir
         self.device = device
@@ -22,11 +40,13 @@ class MyDataset(Dataset):
         self.target_sample_rate = target_sample_rate
         self.num_samples = num_samples
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.annotations)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
+
         audio_sample_path = self._get_audio_sample_path(index)
+
         label = self._get_audio_sample_label(index)
         signal, sr = torchaudio.load(audio_sample_path)
         signal = signal.to(self.device)
@@ -37,12 +57,12 @@ class MyDataset(Dataset):
         signal = self.transformation(signal)
         return signal, label
 
-    def _cut_if_necessary(self, signal):
+    def _cut_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
         if signal.shape[1] > self.num_samples:
             signal = signal[:, :self.num_samples]
         return signal
 
-    def _right_pad_if_necessary(self, signal):
+    def _right_pad_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
         length_signal = signal.shape[1]
         if length_signal < self.num_samples:
             num_missing_samples = self.num_samples - length_signal
@@ -50,32 +70,34 @@ class MyDataset(Dataset):
             signal = torch.nn.functional.pad(signal, last_dim_padding)
         return signal
 
-    def _resample_if_necessary(self, signal, sr):
+    def _resample_if_necessary(self, signal: torch.Tensor, sr: int) -> torch.Tensor:
         if sr != self.target_sample_rate:
             resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate)
             signal = resampler(signal)
         return signal
 
-    def _mix_down_if_necessary(self, signal):
+    def _mix_down_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
+        """mix down to one channel if there are more than one channel"""
         if signal.shape[0] > 1:
             signal = torch.mean(signal, dim=0, keepdim=True)
         return signal
 
-    def _get_audio_sample_path(self, index):
-        fold = f"fold{self.annotations.iloc[index, 5]}"
-        path = os.path.join(self.audio_dir, fold, self.annotations.iloc[
-            index, 0])
+    def _get_audio_sample_path(self, index: int) -> str:
+        path = os.path.join(self.audio_dir, self.annotations.loc[
+            index, 'path'])
         return path
 
-    def _get_audio_sample_label(self, index):
-        return self.annotations.iloc[index, 6]
+    def _get_audio_sample_label(self, index: int) -> int:
+        """return the id of the audio"""
+        return self.annotations.loc[index, 'music_id']
 
 
 if __name__ == "__main__":
-    ANNOTATIONS_FILE = "/home/valerio/datasets/UrbanSound8K/metadata/UrbanSound8K.csv"
-    AUDIO_DIR = "/home/valerio/datasets/UrbanSound8K/audio"
-    SAMPLE_RATE = 22050
-    NUM_SAMPLES = 22050
+    ANNOTATIONS_FILE = r"C:\Users\ASUS\Desktop\hum\data\train\train_annotation.csv"
+    AUDIO_DIR = r"C:\Users\ASUS\Desktop\hum\data\train"
+    SECS = 10
+    SAMPLE_RATE = 16000
+    NUM_SAMPLES = 160000 
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -90,7 +112,7 @@ if __name__ == "__main__":
         n_mels=64
     )
 
-    usd = MyDataset(ANNOTATIONS_FILE,
+    usd = HumDataset(ANNOTATIONS_FILE,
                             AUDIO_DIR,
                             mel_spectrogram,
                             SAMPLE_RATE,

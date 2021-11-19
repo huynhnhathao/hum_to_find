@@ -5,7 +5,7 @@ from requests.adapters import HTTPAdapter
 import torch
 from torch import nn
 from torch.nn import functional as F
-
+from torchsummary import summary
 
 class BasicConv2d(nn.Module):
 
@@ -195,24 +195,15 @@ class InceptionResnetV1(nn.Module):
             initialized. (default: {None})
         dropout_prob {float} -- Dropout probability. (default: {0.6})
     """
-    def __init__(self, pretrained=None, classify=False, num_classes=None, dropout_prob=0.6, device=None):
+    def __init__(self, embedding_dims: int = 512, num_classes=None, dropout_prob=0.6, device=None):
         super().__init__()
 
         # Set simple attributes
-        self.pretrained = pretrained
-        self.classify = classify
+        self.embedding_dims = embedding_dims
         self.num_classes = num_classes
 
-        if pretrained == 'vggface2':
-            tmp_classes = 8631
-        elif pretrained == 'casia-webface':
-            tmp_classes = 10575
-        elif pretrained is None and self.classify and self.num_classes is None:
-            raise Exception('If "pretrained" is not specified and "classify" is True, "num_classes" must be specified')
-
-
         # Define layers
-        self.conv2d_1a = BasicConv2d(3, 32, kernel_size=3, stride=2)
+        self.conv2d_1a = BasicConv2d(1, 32, kernel_size=3, stride=2)
         self.conv2d_2a = BasicConv2d(32, 32, kernel_size=3, stride=1)
         self.conv2d_2b = BasicConv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.maxpool_3a = nn.MaxPool2d(3, stride=2)
@@ -250,12 +241,8 @@ class InceptionResnetV1(nn.Module):
         self.block8 = Block8(noReLU=True)
         self.avgpool_1a = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(dropout_prob)
-        self.last_linear = nn.Linear(1792, 512, bias=False)
+        self.last_linear = nn.Linear(1792, self.embedding_dims, bias=False)
         self.last_bn = nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True)
-
-
-        if self.classify and self.num_classes is not None:
-            self.logits = nn.Linear(512, self.num_classes)
 
         self.device = torch.device('cpu')
         if device is not None:
@@ -286,8 +273,12 @@ class InceptionResnetV1(nn.Module):
         x = self.dropout(x)
         x = self.last_linear(x.view(x.shape[0], -1))
         x = self.last_bn(x)
-        if self.classify:
-            x = self.logits(x)
-        else:
-            x = F.normalize(x, p=2, dim=1)
-        return x
+
+        # L2 normalize the embeddings
+        x = F.normalize(x, p=2, dim=1)
+
+
+if __name__ == '__main__':
+    mynet = InceptionResnetV1()
+    torch.save(mynet, 'inception_net')
+    summary(mynet, (1, 512, 512), -1, 'cpu')
