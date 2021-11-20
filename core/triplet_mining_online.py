@@ -1,7 +1,7 @@
  
 __all__ = ['batch_hard_triplet_loss', 'batch_all_triplet_loss']
 
-# TODO: negative sample must come from a different song
+# TODO: negative sample must come from a different song: done
 
 
 # Cell

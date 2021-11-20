@@ -1,5 +1,7 @@
 import logging
 from typing import Tuple, List
+import time
+
 import torch
 import torchaudio
 from torch import nn 
@@ -34,6 +36,9 @@ class Trainer:
         self.optimizer = optimizer
         self.epochs = epochs
         self.device = device
+        
+        # save training time for each epoch to estimate remaining time
+        self.epoch_time = []
 
     def train_single_epoch(self,) -> None:
         epoch_loss = []
@@ -56,9 +61,15 @@ class Trainer:
 
     def train(self, )-> None:
         for i in range(self.epochs):
+            start = time.time()
             logger.info(f"Epoch {i+1}")
             self.train_single_epoch()
-            
+
+            end = time.time()
+            time_spent = (end - start)/60
+            self.epoch_time.append(time_spent)
+            logger.info(f"Estimated time per epoch: {np.mean(self.epoch_time)}-minutes")
+            logger.info(f"Estimated remaining time: {(self.epochs - i - 1)*np.mean(self.epochs)}-minutes")
         logger.info('Finish training.')
 
 
@@ -94,8 +105,8 @@ if __name__ == '__main__':
     trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,
                     EPOCHS, device)
     
-    trainer.train()
+    # trainer.train()
 
-    torch.save(trainer.model.state_dict('inception_resnet.pt'))
+    torch.save(trainer.model.state_dict(), '/home/huynhhao/Desktop/hum/inception_resnet.pt')
 
     logger.info('Finish the job.')

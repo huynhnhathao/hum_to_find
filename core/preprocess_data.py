@@ -13,10 +13,6 @@ from constants import *
 # TODO: cache transformed data into disk
 # Test everything here, when run we bring it to colab to run on GPU
 
-# TODO: split the song/hum into chunks stating from the position in the wave
-# where the wave value > threshold, means start when someone start singing/humming
-# then, we will match each 2 secs in the hum and song to be an anchor/positive
-# and we will have multiple set of anchor, positive given one tuple of (song, hum)
 
 class HumDataset(Dataset):
 
