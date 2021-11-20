@@ -6,6 +6,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 import numpy as np 
+from sklearn import preprocessing
 
 from preprocess_data import HumDataset
 from inception_resnet import *
@@ -20,23 +21,20 @@ logger = logging.getLogger()
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
+encoder = preprocessing.LabelEncoder()
 
 def create_data_loader(train_data, batch_size):
     train_dataloader = DataLoader(train_data, batch_size=batch_size)
     return train_dataloader
 
 
-def input2tensor(inputs: Tuple[List[torch.Tensor], List[torch.Tensor]],
-                targets: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-    """This function transform list of inputs, target into 2 tensor which pytorch
-    accept.
-    """
-    # input type: 
 
 def train_single_epoch(model, data_loader, loss_fn, optimizer, device) -> None:
     epoch_loss = []
     _positive_fractions = []
     for inputs, targets in data_loader:
+        # string target to int target
+        targets = torch.tensor(encoder.fit_transform(targets))
 
         inputs, targets = inputs.to(device), targets.to(device)
         embeddings = model(inputs)
@@ -70,8 +68,8 @@ if __name__ == '__main__':
 
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
-        n_fft=1024,
-        hop_length=512,
+        n_fft=512,
+        hop_length=256,
         n_mels=96
     )
 

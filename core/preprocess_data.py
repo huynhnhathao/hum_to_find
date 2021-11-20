@@ -8,7 +8,7 @@ import torchaudio
 import pandas as pd
 import numpy as np
 
-# from constants import *
+from constants import *
 
 # TODO: cache transformed data into disk
 # Test everything here, when run we bring it to colab to run on GPU
@@ -56,9 +56,12 @@ class HumDataset(Dataset):
         # data.
         self.samples = []
 
+        self.random_indices = list(np.random.randint(0, len(self.annotations), len(self.annotations)))
 
     def __len__(self) -> int:
-        return len(self.annotations)
+        # This method is just a dummy method, the random sampling job of the data
+        # is left for this class, I dont know if there is a better way.
+        return len(self.annotations)*9
 
     def __getitem__(self, index: int
                 ) -> Tuple[Tuple[torch.Tensor, torch.tensor], torch.Tensor]:
@@ -79,7 +82,13 @@ class HumDataset(Dataset):
         if self.samples:
             return self.samples.pop()
         else:
-            original_path, hum_path = self._get_audio_sample_path(index)
+            if self.random_indices:
+                index = self.random_indices.pop()
+                original_path, hum_path = self._get_audio_sample_path(index)
+            else:
+                self.random_indices = list(np.random.randint(0, len(self.annotations), len(self.annotations)))
+                index = self.random_indices.pop()
+                original_path, hum_path = self._get_audio_sample_path(index)
 
             label = self._get_audio_sample_label(index)
 

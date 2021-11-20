@@ -247,7 +247,7 @@ class InceptionResnetV1(nn.Module):
         self.avgpool_1a = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(dropout_prob)
         self.last_linear = nn.Linear(1792, self.embedding_dims, bias=False)
-        self.last_bn = nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True)
+        self.last_bn = nn.BatchNorm1d(128, eps=0.001, momentum=0.1, affine=True)
 
         self.device = torch.device('cpu')
         if device is not None:
