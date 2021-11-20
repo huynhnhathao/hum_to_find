@@ -1,3 +1,4 @@
+import logging
 import os
 import requests
 from requests.adapters import HTTPAdapter
@@ -6,6 +7,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torchsummary import summary
+
+logger = logging.getLogger()
 
 class BasicConv2d(nn.Module):
 
@@ -271,12 +274,13 @@ class InceptionResnetV1(nn.Module):
         x = self.block8(x)
         x = self.avgpool_1a(x)
         x = self.dropout(x)
+        # logger.info(f'x size {x.shape}') (batch_size, 1792, 1, 1)
         x = self.last_linear(x.view(x.shape[0], -1))
         x = self.last_bn(x)
 
         # L2 normalize the embeddings
         x = F.normalize(x, p=2, dim=1)
-
+        return x
 
 if __name__ == '__main__':
     mynet = InceptionResnetV1()

@@ -93,8 +93,8 @@ class HumDataset(Dataset):
 
 
 if __name__ == "__main__":
-    ANNOTATIONS_FILE = r"C:\Users\ASUS\Desktop\hum\data\train\train_annotation.csv"
-    AUDIO_DIR = r"C:\Users\ASUS\Desktop\hum\data\train"
+    ANNOTATIONS_FILE = "/home/huynhhao/Desktop/hum/hum_to_find/meta_data/train_annotation.csv"
+    AUDIO_DIR = "/home/huynhhao/Desktop/hum/data"
     SECS = 10
     SAMPLE_RATE = 16000
     NUM_SAMPLES = 160000 
@@ -118,5 +118,9 @@ if __name__ == "__main__":
                             SAMPLE_RATE,
                             NUM_SAMPLES,
                             device)
-    print(f"There are {len(usd)} samples in the dataset.")
-    signal, label = usd[0]
+    sampler = torch.utils.data.RandomSampler(usd)
+    dataloader = torch.utils.data.DataLoader(usd, batch_size = 32, sampler = sampler)
+    batch = next(iter(dataloader))
+    print(len(batch))
+    print(batch[0].shape)
+    print(batch[1])
