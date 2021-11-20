@@ -8,7 +8,7 @@ import torchaudio
 import pandas as pd
 import numpy as np
 
-from constants import *
+# from constants import *
 
 # TODO: cache transformed data into disk
 # Test everything here, when run we bring it to colab to run on GPU
@@ -48,6 +48,15 @@ class HumDataset(Dataset):
         self.num_samples = num_samples
         self.singing_threshold = singing_threshold
 
+        # My clever (or dirty?) way to solve the problem: only 2 secs of one audio
+        # create one sample, so one (original, hum) tuple can create multiple
+        # samples, but __getitem__ only return one (sample, label), how do we 
+        # remember the old samples created but not yet used?
+        # we save it into samples list, and retrieved it when samples still has 
+        # data.
+        self.samples = []
+
+
     def __len__(self) -> int:
         return len(self.annotations)
 
@@ -67,37 +76,46 @@ class HumDataset(Dataset):
             9 of this ((original, hummed), song_id)
 
         """
+        if self.samples:
+            return self.samples.pop()
+        else:
+            original_path, hum_path = self._get_audio_sample_path(index)
 
-        original_path, hum_path = self._get_audio_sample_path(index)
+            label = self._get_audio_sample_label(index)
 
-        label = self._get_audio_sample_label(index)
-
-        original_signal, original_sr = torchaudio.load(original_path)
-        original_signal = original_signal.to(self.device)
-        original_signal = self._resample_if_necessary(original_signal, original_sr)
-        original_signal = self._mix_down_if_necessary(original_signal)
-        original_signal = self._cut_head_if_necessary(original_signal)
-        original_signal = self._cut_tail_if_necessary(original_signal)
-        original_signal = self._right_pad_if_necessary(original_signal)
-        original_signals = self._split_signal(original_signal, 2)
-        # transform all chunks of signal
-        original_signals = self.transformation(original_signals)
+            original_signal, original_sr = torchaudio.load(original_path)
+            original_signal = original_signal.to(self.device)
+            original_signal = self._resample_if_necessary(original_signal, original_sr)
+            original_signal = self._mix_down_if_necessary(original_signal)
+            original_signal = self._cut_head_if_necessary(original_signal)
+            original_signal = self._cut_tail_if_necessary(original_signal)
+            original_signal = self._right_pad_if_necessary(original_signal)
+            original_signals = self._split_signal(original_signal, 16000, 9)
         
+            original_signals = self._transformation(original_signals)
+            
+
+            hum_signal, hum_sr = torchaudio.load(hum_path)
+            hum_signal = hum_signal.to(self.device)
+            hum_signal = self._resample_if_necessary(hum_signal, hum_sr)
+            hum_signal = self._mix_down_if_necessary(hum_signal)
+            hum_signal = self._cut_head_if_necessary(hum_signal)
+            hum_signal = self._cut_tail_if_necessary(hum_signal)
+            hum_signal = self._right_pad_if_necessary(hum_signal)
+            hum_signals = self._split_signal(hum_signal, 16000, 9)
+
+            hum_signals = self._transformation(hum_signals)
+
+            for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
+                this_label = f"{str(label)}_{i}"
+                original_sample = (original, this_label)
+                hum_sample = (hum, this_label)
+
+                self.samples.append(original_sample)
+                self.samples.append(hum_sample)
 
 
-        hum_signal, hum_sr = torchaudio.load(hum_path)
-        hum_signal = hum_signal.to(self.device)
-        hum_signal = self._resample_if_necessary(hum_signal, hum_sr)
-        hum_signal = self._mix_down_if_necessary(hum_signal)
-        hum_signal = self._cut_head_if_necessary(hum_signal)
-        hum_signal = self._cut_tail_if_necessary(hum_signal)
-        hum_signal = self._right_pad_if_necessary(hum_signal)
-        hum_signals = self._split_signal(hum_signal, 2)
-
-        hum_signals = self.transformation(hum_signals)
-
-
-        return signal, label
+        return self.samples.pop()
 
     def _cut_head_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
         """Cut the head of the signal until someone start singing
@@ -149,20 +167,34 @@ class HumDataset(Dataset):
         return self.annotations.loc[index, 'music_id']
 
     def _split_signal(self, signal: torch.Tensor,
-                    chunk_size: int, overlapping: int) -> List[torch.Tensor]:
+                    overlapping: int,
+                    num_chunks: int) -> List[torch.Tensor]:
 
-        """plit the signal into k equal chunks of size chunk_size samples, 
-        each split overlapping of overlapping samples"""
+        """plit the signal into num_chunks equal chunks, 
+        each chunk overlapping of overlapping samples
+        Args:
+            signal: the tensor signal to be splited
+            overlapping: the number of samples overlapping between chunks
+            num_chunks: number of chunks to be extracted
+
+        """
 
         # right now the signal must has the size of (1, NUM_SAMPLE)
         assert signal.shape[1] == self.num_samples, 'unexpected num_samples'
 
         all_chunks = []
-        for i in range(0, self.num_samples, overlapping):
-            all_chunks.append(i*overlapping, (i+2)*overlapping)
+        for i in range(0, num_chunks):
+            all_chunks.append(signal[:, i*overlapping: (i+2)*overlapping] )
 
         return all_chunks
 
+    def _transformation(self, signals: List[torch.Tensor]) -> List[torch.Tensor]:
+        """transform each signal in signals"""
+        transformed_signals = []
+        for signal in signals:
+            transformed_signals.append(self.transformation(signal))
+
+        return transformed_signals
 
 if __name__ == "__main__":
     ANNOTATIONS_FILE = "/home/huynhhao/Desktop/hum/hum_to_find/meta_data/train_annotation.csv"
@@ -189,9 +221,10 @@ if __name__ == "__main__":
                             mel_spectrogram,
                             SAMPLE_RATE,
                             NUM_SAMPLES,
+                            SINGING_THRESHOLD,
                             device)
     sampler = torch.utils.data.RandomSampler(usd)
-    dataloader = torch.utils.data.DataLoader(usd, batch_size = 32, sampler = sampler)
+    dataloader = torch.utils.data.DataLoader(usd, batch_size = 16, sampler = sampler)
     batch = next(iter(dataloader))
     print(len(batch))
     print(batch[0].shape)

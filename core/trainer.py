@@ -1,5 +1,5 @@
 import logging
-
+from typing import Tuple, List
 import torch
 import torchaudio
 from torch import nn 
@@ -26,10 +26,18 @@ def create_data_loader(train_data, batch_size):
     return train_dataloader
 
 
+def input2tensor(inputs: Tuple[List[torch.Tensor], List[torch.Tensor]],
+                targets: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    """This function transform list of inputs, target into 2 tensor which pytorch
+    accept.
+    """
+    # input type: 
+
 def train_single_epoch(model, data_loader, loss_fn, optimizer, device) -> None:
     epoch_loss = []
     _positive_fractions = []
     for inputs, targets in data_loader:
+
         inputs, targets = inputs.to(device), targets.to(device)
         embeddings = model(inputs)
         loss, positive_rate = loss_fn(targets, embeddings, 1.0)
@@ -67,8 +75,8 @@ if __name__ == '__main__':
         n_mels=96
     )
 
-    hds = HumDataset(ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
-                    NUM_SAMPLES, device)
+    hds = HumDataset(TRAIN_ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
+                    NUM_SAMPLES, SINGING_THRESHOLD, DEVICE)
 
 
     random_sampler = torch.utils.data.RandomSampler(hds, )
