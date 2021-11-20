@@ -21,44 +21,51 @@ logger = logging.getLogger()
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-encoder = preprocessing.LabelEncoder()
 
-def create_data_loader(train_data, batch_size):
-    train_dataloader = DataLoader(train_data, batch_size=batch_size)
-    return train_dataloader
+class Trainer:
+    
+    def __init__(self, model, dataloader,
+                loss_fn, optimizer, epochs:int, device: str) -> None:
+
+        self.encoder = preprocessing.LabelEncoder()
+        self.model = model
+        self.dataloader = dataloader
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
+        self.epochs = epochs
+        self.device = device
+
+    def train_single_epoch(self,) -> None:
+        epoch_loss = []
+        _positive_fractions = []
+        for inputs, targets in self.dataloader:
+            # string target to int target
+            targets = torch.tensor(self.encoder.fit_transform(targets))
+
+            inputs, targets = inputs.to(device), targets.to(device)
+            embeddings = self.model(inputs)
+            loss, positive_rate = self.loss_fn(targets, embeddings, 1.0)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            epoch_loss.append(loss.detach().item())
+            _positive_fractions.append(positive_rate)
+            logger.info(f'positive triple fraction {(positive_rate)}')
+
+        logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
+        logger.info(f'Epoch positive triple fraction {np.mean(_positive_fractions)}')
 
 
-
-def train_single_epoch(model, data_loader, loss_fn, optimizer, device) -> None:
-    epoch_loss = []
-    _positive_fractions = []
-    for inputs, targets in data_loader:
-        # string target to int target
-        targets = torch.tensor(encoder.fit_transform(targets))
-
-        inputs, targets = inputs.to(device), targets.to(device)
-        embeddings = model(inputs)
-        loss, positive_rate = loss_fn(targets, embeddings, 1.0)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        epoch_loss.append(loss.detach().item())
-        _positive_fractions.append(positive_rate)
-        logger.info(f'Epoch positive triple fraction {(positive_rate)}')
-
-    logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
-    logger.info(f'Epoch positive triple fraction {np.mean(_positive_fractions)}')
-
-
-def train(model, data_loader, loss_fn, optimizer, device, epochs)-> None:
-    for i in range(epochs):
-        logger.info(f"Epoch {i+1}")
-        train_single_epoch(model, data_loader, loss_fn, optimizer, device)
-        
-    logger.info('Finish training.')
+    def train(self, )-> None:
+        for i in range(self.epochs):
+            logger.info(f"Epoch {i+1}")
+            self.train_single_epoch()
+            
+        logger.info('Finish training.')
 
 
 if __name__ == '__main__':
+
     if torch.cuda.is_available():
         device = 'cuda'
     else:
@@ -85,9 +92,11 @@ if __name__ == '__main__':
     loss_fn = batch_all_triplet_loss
     optimizer = torch.optim.Adam(inception_resnet.parameters(), 
                                 lr = LEARNING_RATE)
+    trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,
+                    EPOCHS, device)
+    
+    trainer.train()
 
-    train(inception_resnet, train_dataloader, loss_fn, optimizer, device, EPOCHS)
-
-    torch.save(inception_resnet.state_dict('inception_resnet.pt'))
+    torch.save(trainer.model.state_dict('inception_resnet.pt'))
 
     logger.info('Finish the job.')
