@@ -8,6 +8,8 @@ from torch import nn
 from torch.nn import functional as F
 from torchsummary import summary
 
+# TODO: test the elu activation performance
+
 logger = logging.getLogger()
 
 class BasicConv2d(nn.Module):

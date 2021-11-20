@@ -1,16 +1,22 @@
 import os
+from typing import Tuple, List
 
 import torch
 from torch.utils.data import Dataset
-import pandas as pd
 import torchaudio
 
-# TODO: instead of cut the song sample on the right, let's cut it at random position
-# inside the allowed range of samples, consider it as data augmentation
+import pandas as pd
+import numpy as np
 
+from constants import *
 
 # TODO: cache transformed data into disk
 # Test everything here, when run we bring it to colab to run on GPU
+
+# TODO: split the song/hum into chunks stating from the position in the wave
+# where the wave value > threshold, means start when someone start singing/humming
+# then, we will match each 2 secs in the hum and song to be an anchor/positive
+# and we will have multiple set of anchor, positive given one tuple of (song, hum)
 
 class HumDataset(Dataset):
 
@@ -20,6 +26,7 @@ class HumDataset(Dataset):
                  transformation,
                  target_sample_rate: int,
                  num_samples: int,
+                 singing_threshold: int,
                  device: str) -> None:
 
         """
@@ -39,25 +46,72 @@ class HumDataset(Dataset):
         self.transformation = transformation.to(self.device)
         self.target_sample_rate = target_sample_rate
         self.num_samples = num_samples
+        self.singing_threshold = singing_threshold
 
     def __len__(self) -> int:
         return len(self.annotations)
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int
+                ) -> Tuple[Tuple[torch.Tensor, torch.tensor], torch.Tensor]:
 
-        audio_sample_path = self._get_audio_sample_path(index)
+        """
+        Each item indexing one song id, each song id has two audio: the
+        original song and the hummed song. Each audio will go through:
+            1. Pre-cut the left audio until it starts to sing
+            2. Pad/cut each audio to has 10 second.
+            3. Split the audio into 2-sec chunks, overlapping 1 sec.
+
+        Finally, one song id/item will give 9 tuple of (original, hummed) sample.
+
+        Returns:
+            9 of this ((original, hummed), song_id)
+
+        """
+
+        original_path, hum_path = self._get_audio_sample_path(index)
 
         label = self._get_audio_sample_label(index)
-        signal, sr = torchaudio.load(audio_sample_path)
-        signal = signal.to(self.device)
-        signal = self._resample_if_necessary(signal, sr)
-        signal = self._mix_down_if_necessary(signal)
-        signal = self._cut_if_necessary(signal)
-        signal = self._right_pad_if_necessary(signal)
-        signal = self.transformation(signal)
+
+        original_signal, original_sr = torchaudio.load(original_path)
+        original_signal = original_signal.to(self.device)
+        original_signal = self._resample_if_necessary(original_signal, original_sr)
+        original_signal = self._mix_down_if_necessary(original_signal)
+        original_signal = self._cut_head_if_necessary(original_signal)
+        original_signal = self._cut_tail_if_necessary(original_signal)
+        original_signal = self._right_pad_if_necessary(original_signal)
+        original_signals = self._split_signal(original_signal, 2)
+        # transform all chunks of signal
+        original_signals = self.transformation(original_signals)
+        
+
+
+        hum_signal, hum_sr = torchaudio.load(hum_path)
+        hum_signal = hum_signal.to(self.device)
+        hum_signal = self._resample_if_necessary(hum_signal, hum_sr)
+        hum_signal = self._mix_down_if_necessary(hum_signal)
+        hum_signal = self._cut_head_if_necessary(hum_signal)
+        hum_signal = self._cut_tail_if_necessary(hum_signal)
+        hum_signal = self._right_pad_if_necessary(hum_signal)
+        hum_signals = self._split_signal(hum_signal, 2)
+
+        hum_signals = self.transformation(hum_signals)
+
+
         return signal, label
 
-    def _cut_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
+    def _cut_head_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
+        """Cut the head of the signal until someone start singing
+        """
+        # TODO: is this necessary?
+        first_index = 0
+        for value in signal[0, :]:
+            first_index += 1
+            if np.abs(value.item()) > self.singing_threshold:
+                break
+
+        return signal[:, first_index:]
+
+    def _cut_tail_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
         if signal.shape[1] > self.num_samples:
             signal = signal[:, :self.num_samples]
         return signal
@@ -71,6 +125,7 @@ class HumDataset(Dataset):
         return signal
 
     def _resample_if_necessary(self, signal: torch.Tensor, sr: int) -> torch.Tensor:
+        """Resample the signal with sample rate = sr into self.target_sample_rate"""
         if sr != self.target_sample_rate:
             resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate)
             signal = resampler(signal)
@@ -82,14 +137,31 @@ class HumDataset(Dataset):
             signal = torch.mean(signal, dim=0, keepdim=True)
         return signal
 
-    def _get_audio_sample_path(self, index: int) -> str:
-        path = os.path.join(self.audio_dir, self.annotations.loc[
-            index, 'path'])
-        return path
+    def _get_audio_sample_path(self, index: int) -> Tuple[str, str]:
+        """Return the indices of the original and hummed audio"""
+
+        original = os.path.join(self.audio_dir, self.annotations.loc[index, 'song_path'])
+        hum = os.path.join(self.audio_dir, self.annotations.loc[index, 'hum_path'])
+        return original, hum
 
     def _get_audio_sample_label(self, index: int) -> int:
         """return the id of the audio"""
         return self.annotations.loc[index, 'music_id']
+
+    def _split_signal(self, signal: torch.Tensor,
+                    chunk_size: int, overlapping: int) -> List[torch.Tensor]:
+
+        """plit the signal into k equal chunks of size chunk_size samples, 
+        each split overlapping of overlapping samples"""
+
+        # right now the signal must has the size of (1, NUM_SAMPLE)
+        assert signal.shape[1] == self.num_samples, 'unexpected num_samples'
+
+        all_chunks = []
+        for i in range(0, self.num_samples, overlapping):
+            all_chunks.append(i*overlapping, (i+2)*overlapping)
+
+        return all_chunks
 
 
 if __name__ == "__main__":
