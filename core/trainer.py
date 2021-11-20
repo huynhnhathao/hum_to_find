@@ -6,7 +6,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 import numpy as np 
-from sklearn import preprocessing
 
 from preprocess_data import HumDataset
 from inception_resnet import *
@@ -21,13 +20,14 @@ logger = logging.getLogger()
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
+#TODO: evaluate method, save the embedding vectors when training, then after 
+# K epochs, use the saved embedding vectors to evaluate on the train set.
 
 class Trainer:
     
     def __init__(self, model, dataloader,
                 loss_fn, optimizer, epochs:int, device: str) -> None:
 
-        self.encoder = preprocessing.LabelEncoder()
         self.model = model
         self.dataloader = dataloader
         self.loss_fn = loss_fn
@@ -40,8 +40,6 @@ class Trainer:
         _positive_fractions = []
         for inputs, targets in self.dataloader:
             # string target to int target
-            targets = torch.tensor(self.encoder.fit_transform(targets))
-
             inputs, targets = inputs.to(device), targets.to(device)
             embeddings = self.model(inputs)
             loss, positive_rate = self.loss_fn(targets, embeddings, 1.0)
@@ -62,6 +60,7 @@ class Trainer:
             self.train_single_epoch()
             
         logger.info('Finish training.')
+
 
 
 if __name__ == '__main__':
@@ -89,7 +88,7 @@ if __name__ == '__main__':
 
     inception_resnet = InceptionResnetV1(embedding_dims = EMBEDDING_DIMS )
 
-    loss_fn = batch_all_triplet_loss
+    loss_fn = batch_hard_triplet_loss
     optimizer = torch.optim.Adam(inception_resnet.parameters(), 
                                 lr = LEARNING_RATE)
     trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,

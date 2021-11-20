@@ -116,7 +116,18 @@ class HumDataset(Dataset):
             hum_signals = self._transformation(hum_signals)
 
             for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
-                this_label = f"{str(label)}_{i}"
+                # We don't want 2 sample of the same song to become (anchor, negative)
+                # so we will do a trick into the label of sameples belong to the 
+                # same song: every sameples belong the the same sone will has id
+                # in range label + 9. with this trick, we can imply
+                # which samples are actually belong to the same song.
+                # because the id range are very large, so this should not be a problem
+                # however, this is still a dirty workaround, until I know a better 
+                # way. There will have cases where valid negative become invalid 
+                # because of this trick, but it should not be a problem because
+                # given the batch size and the random selection of sample.
+                this_label = label + i 
+
                 original_sample = (original, this_label)
                 hum_sample = (hum, this_label)
 

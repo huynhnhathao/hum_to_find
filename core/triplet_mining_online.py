@@ -1,6 +1,9 @@
  
 __all__ = ['batch_hard_triplet_loss', 'batch_all_triplet_loss']
 
+# TODO: negative sample must come from a different song
+
+
 # Cell
 import torch
 import torch.nn.functional as F
@@ -14,10 +17,8 @@ def _pairwise_distances(embeddings: torch.Tensor,
     Returns:
         pairwise_distances: tensor of shape (batch_size, batch_size)
     """
-    print(embeddings)
     
     dot_product = torch.matmul(embeddings, embeddings.t())
-    print(dot_product)
     # Get squared L2 norm for each embedding. We can just take the diagonal of `dot_product`.
     # This also provides more numerical stability (the diagonal of the result will be exactly 0).
     # shape (batch_size,)
@@ -99,8 +100,12 @@ def _get_anchor_negative_triplet_mask(labels):
     """
     # Check if labels[i] != labels[k]
     # Uses broadcasting where the 1st argument has shape (1, batch_size) and the 2nd (batch_size, 1)
-
-    return ~(labels.unsqueeze(0) == labels.unsqueeze(1))
+    # 2 sample belong to the same song can not be a valid negative for each others.
+    # we have encode the information of belong to the same song into the id of the sample
+    # if id1 < id2 + 9 or id2 < id1 + 9, then they are possibly in the same song, 
+    # and should not become a negative tuple.
+    first_cond = ~(labels.unsqueeze(0) <= (labels.unsqueeze(1) + 8) )
+    return first_cond 
 
 
 # Cell
@@ -118,36 +123,37 @@ def batch_hard_triplet_loss(labels, embeddings, margin, squared=False):
     """
     # Get the pairwise distance matrix
     pairwise_dist = _pairwise_distances(embeddings, squared=squared)
-
+    print(pairwise_dist)
     # For each anchor, get the hardest positive
     # First, we need to get a mask for every valid positive (they should have same label)
     mask_anchor_positive = _get_anchor_positive_triplet_mask(labels).float()
-
+    print(mask_anchor_positive)
     # We put to 0 any element where (a, p) is not valid (valid if a != p and label(a) == label(p))
     anchor_positive_dist = mask_anchor_positive * pairwise_dist
-
+    print(anchor_positive_dist)
     # shape (batch_size, 1)
     hardest_positive_dist, _ = anchor_positive_dist.max(1, keepdim=True)
-
+    print(hardest_positive_dist)
     # For each anchor, get the hardest negative
     # First, we need to get a mask for every valid negative (they should have different labels)
     mask_anchor_negative = _get_anchor_negative_triplet_mask(labels).float()
-
+    print(mask_anchor_negative)
     # We add the maximum value in each row to the invalid negatives (label(a) == label(n))
     max_anchor_negative_dist, _ = pairwise_dist.max(1, keepdim=True)
     anchor_negative_dist = pairwise_dist + max_anchor_negative_dist * (1.0 - mask_anchor_negative)
-
+    print(anchor_negative_dist)
     # shape (batch_size,)
     hardest_negative_dist, _ = anchor_negative_dist.min(1, keepdim=True)
-
+    print(hardest_negative_dist)
     # Combine biggest d(a, p) and smallest d(a, n) into final triplet loss
     tl = hardest_positive_dist - hardest_negative_dist + margin
-    num_triplet = (hardest_negative_dist > 0)
-    print(f'num triplet {torch.sum(num_triplet.float())}')
+    print(tl)
+    # num_triplet = (hardest_negative_dist > 0)
+    # print(f'num triplet {torch.sum(num_triplet.float())}')
     tl = F.relu(tl)
     triplet_loss = tl.mean()
 
-    return triplet_loss
+    return triplet_loss, None
 
 # Cell
 def batch_all_triplet_loss(labels: torch.Tensor, embeddings: torch.Tensor,
@@ -200,7 +206,9 @@ def batch_all_triplet_loss(labels: torch.Tensor, embeddings: torch.Tensor,
     return triplet_loss, fraction_positive_triplets
 
 if __name__ == '__main__':
-    BATCH_SIZE = 5
-    labels = torch.tensor([1, 2, 3, 1, 1 ])
-    embeddings = torch.randn(BATCH_SIZE, 10)
-    print(batch_hard_triplet_loss(labels, embeddings, 1 ))
+
+    labels = [10000, 10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008,
+            20000, 20001, 20002, 20003, 20004, 20005, 20006, 20007, 20008, ]
+
+    labels = torch.tensor(labels)
+    print(_get_anchor_negative_triplet_mask(labels))
