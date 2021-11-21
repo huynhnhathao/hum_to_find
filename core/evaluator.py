@@ -17,6 +17,8 @@ from inception_resnet import *
 
 logger = logging.getLogger()
 
+
+# TODO: can not predetermine the num_chunks when inference, or predetermine the num_samples
 # TODO: cache the transformed audio,
 # TODO: Add multiprocessing
 
@@ -121,7 +123,7 @@ class Evaluator:
 
     def _split_signal(self, signal: torch.Tensor,
                     overlapping: int,
-                    num_chunks: int) -> List[torch.Tensor]:
+                   ) -> List[torch.Tensor]:
 
         """plit the signal into num_chunks equal chunks, 
         each chunk overlapping of overlapping samples
@@ -193,7 +195,7 @@ class Evaluator:
         return embeddings.detach().numpy()
 
 
-    def save_data(self, embeddings: List[np.ndarray], save_path: str,
+    def save_embeddings_data(self, embeddings: List[np.ndarray], save_path: str,
                 replace_if_exist: bool = True) -> None:
         """Save embeddings to save_path in json line format
         Args:
@@ -241,8 +243,8 @@ class Evaluator:
             song_embeddings_path = os.path.join(self.save_embeddings_path, 'val_original_song_embeddings.jl')
             hum_embeddings_path = os.path.join(self.save_embeddings_path, 'val_hummed_audio_embeddings.jl')
 
-            self.save_data(self.all_song_embeddings, song_embeddings_path)
-            self.save_data(self.all_hum_embeddings, hum_embeddings_path)
+            self.save_embeddings_data(self.all_song_embeddings, song_embeddings_path)
+            self.save_embeddings_data(self.all_hum_embeddings, hum_embeddings_path)
 
                 
 
