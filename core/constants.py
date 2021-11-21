@@ -3,7 +3,7 @@ VAL_ANNOTATION_FILE = '/home/huynhhao/Desktop/hum/hum_to_find/meta_data/val_anno
 TRAIN_AUDIO_DIR = "/home/huynhhao/Desktop/hum/data"
 VAL_AUDIO_DIR = '/home/huynhhao/Desktop/hum/data/'
 SAVE_EMBEDDING_PATH = '/home/huynhhao/Desktop/hum/data/cached_embeddings'
-
+SAVE_FEATURES_PATH = "/home/huynhhao/Desktop/hum/data/cached_features/val"
 SECS = 10
 SAMPLE_RATE = 16000
 NUM_SAMPLES = 160000 
@@ -24,3 +24,8 @@ TRANSFORMER_NFFT = 512
 TRANSFORMER_HOP_LENGTH = 256
 N_MELS = 96
 NUM_CHUNKS_EACH_AUDIO = 9
+
+# number of samples each chunk when evaluating
+CHUNK_LEN = 32000
+# number of samples overlapping between chunks when evaluating
+CHUNK_OVERLAPPING = 16000

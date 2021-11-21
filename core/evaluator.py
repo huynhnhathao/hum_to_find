@@ -33,7 +33,6 @@ class Evaluator:
                 distance_method: str,
                 transformation: str,
                 target_sample_rate: int, 
-                num_samples: int,
                 singing_threshold: float,
                 device: str,
                 save_embeddings_path: str,
@@ -64,12 +63,15 @@ class Evaluator:
         self.distance_method = distance_method
         self.transformation = self._get_transformation(transformation)
         self.target_sample_rate = target_sample_rate
-        self.num_samples = num_samples
         self.singing_threshold = singing_threshold
         self.device = device
         self.save_embeddings_path = save_embeddings_path
         self.save_features_path = save_features_path
         self.save_embeddings = save_embeddings
+
+        # save all song and hum embeddings to measure distances later
+        self.all_song_embeddings = []
+        self.all_hum_embeddings = []
 
     def _get_transformation(self, transformation: str) -> Any:
         transformer = None
@@ -122,7 +124,7 @@ class Evaluator:
         return signal
 
     def _split_signal(self, signal: torch.Tensor,                               #TODO: num_chunks depend on the duration of the audio
-                    overlapping: int,
+                    chunk_len: int, overlapping: int,
                    ) -> List[torch.Tensor]:
 
 
@@ -130,18 +132,21 @@ class Evaluator:
         each chunk overlapping of overlapping samples
         Args:
             signal: the tensor signal to be splited
+            chunk_len: number of samples for each chunk
             overlapping: the number of samples overlapping between chunks
-            num_chunks: number of chunks to be extracted
 
+        # NOTE: right now overlapping must be a half of chunk_len,
+        #  or this method will be broken
         """
 
-        # right now the signal must has the size of (1, NUM_SAMPLE)
-        assert signal.shape[1] == self.num_samples, 'unexpected num_samples'
-
+        # number of samples in signal must % overlapping == 0
+        num_chunks = (signal.shape[-1]//overlapping) - 1
         all_chunks = []
-        for i in range(0, num_chunks):
-            all_chunks.append(signal[:, i*overlapping: (i+2)*overlapping] )
-
+        for i in range(num_chunks):
+            all_chunks.append(signal[:, i*overlapping:(i+2)*overlapping])
+        # instead of drop the final signals that does not fit in our chunk size, 
+        # we will take the last chunk_size samples as our final chunk
+        all_chunks.append(signal[:, -chunk_len: ])
         return all_chunks
 
     def _transformation(self, signals: List[torch.Tensor]) -> List[torch.Tensor]:
@@ -163,7 +168,7 @@ class Evaluator:
         # save the signal tensor into self.save_features_path, with the name
         # song_<filename>.pt for song audio and hum_<filename>.pt for hummed audio
         filename = '_'.join(audio_path.split('/')[-2:])
-        filename = filename.split('.')[0]
+        filename = filename.split('.')[0] + '.pt'
 
         with open(os.path.join(self.save_features_path, filename), 'wb') as f:
             torch.save(signals.to('cpu'), f)
@@ -175,7 +180,7 @@ class Evaluator:
                 note that this is not the path to the audi features
         """
         filename = '_'.join(audio_path.split('/')[-2:])
-        filename = filename.split('.')[0]
+        filename = filename.split('.')[0] + '.pt'
         filepath = os.path.join(self.save_features_path, filename)
         features = None
         if os.path.isfile(filepath):
@@ -197,15 +202,17 @@ class Evaluator:
         # looking for cached features before actually compute it
         
         signals = self._retrieve_signals_if_exist(audio_path)
+        if signals is not None:
+            print('Retrieving cached features')
         if signals is None:
             signal, sr = torchaudio.load(audio_path)
             signal = signal.to(self.device)
             signal = self._resample_if_necessary(signal, sr)
             signal = self._mix_down_if_necessary(signal)
-            signal = self._cut_head_if_necessary(signal)
-            signal = self._cut_tail_if_necessary(signal)
-            signal = self._right_pad_if_necessary(signal)
-            signals = self._split_signal(signal, 16000, NUM_CHUNKS_EACH_AUDIO)
+            # signal = self._cut_head_if_necessary(signal) No cut head when evaluating
+            # signal = self._cut_tail_if_necessary(signal) No cut tail when elvaluating
+            # signal = self._right_pad_if_necessary(signal) No right pad when evaluating
+            signals = self._split_signal(signal, CHUNK_LEN, CHUNK_OVERLAPPING)
 
             signals = self._transformation(signals)
 
@@ -246,8 +253,7 @@ class Evaluator:
 
         # loop over all original songs, preprocess, forward it through model and
         # save all the embedding vectors to a file.
-        self.all_song_embeddings = []
-        self.all_hum_embeddings = []
+
         for i, row in self.annotation.iterrows():
             print(f'Transforming audio {i+1}/{len(self.annotation)}',)
             song_embeddings = self._preprocess_and_embed_one_audio(
@@ -257,10 +263,10 @@ class Evaluator:
                             os.path.join(self.audio_dir, row['hum_path']))
 
             song_data = {'id': row['music_id'], 'path': row['song_path'], 
-                        'embeddings': song_embeddings}
+                        'embeddings': song_embeddings.tolist()}
             
             hum_data = {'id': row['music_id'], 'path': row['hum_path'], 
-                        'embeddings': hum_embeddings}
+                        'embeddings': hum_embeddings.tolist()}
 
             self.all_song_embeddings.append(song_data)
             self.all_hum_embeddings.append(hum_data)
@@ -285,7 +291,8 @@ if __name__ == '__main__':
 
     model = InceptionResnetV1(embedding_dims= EMBEDDING_DIMS, )
     evaluator = Evaluator(model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, 
-                        'l2', 'mel_spectrogram', SAMPLE_RATE, NUM_SAMPLES,
-                        SINGING_THRESHOLD, device, SAVE_EMBEDDING_PATH, True)
+                        'l2', 'mel_spectrogram', SAMPLE_RATE,
+                        SINGING_THRESHOLD, device, SAVE_EMBEDDING_PATH,
+                        SAVE_FEATURES_PATH, True)
 
     evaluator.transform_data()
