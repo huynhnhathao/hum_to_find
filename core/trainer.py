@@ -41,6 +41,7 @@ class Trainer:
         self.epoch_time = []
 
     def train_single_epoch(self,) -> None:
+        self.model.train()
         epoch_loss = []
         _positive_fractions = []
         for inputs, targets in self.dataloader:

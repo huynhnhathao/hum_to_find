@@ -8,7 +8,7 @@ import torchaudio
 import pandas as pd
 import numpy as np
 
-from constants import *
+from hum_to_find.core.constants import *
 
 # TODO: cache transformed data into disk
 # Test everything here, when run we bring it to colab to run on GPU
@@ -107,7 +107,7 @@ class HumDataset(Dataset):
             hum_signal = self._cut_head_if_necessary(hum_signal)
             hum_signal = self._cut_tail_if_necessary(hum_signal)
             hum_signal = self._right_pad_if_necessary(hum_signal)
-            hum_signals = self._split_signal(hum_signal, 16000, 9)
+            hum_signals = self._split_signal(hum_signal, 16000, NUM_CHUNKS_EACH_AUDIO)
 
             hum_signals = self._transformation(hum_signals)
 
