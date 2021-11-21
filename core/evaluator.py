@@ -121,9 +121,10 @@ class Evaluator:
             signal = torch.nn.functional.pad(signal, last_dim_padding)
         return signal
 
-    def _split_signal(self, signal: torch.Tensor,
+    def _split_signal(self, signal: torch.Tensor,                               #TODO: num_chunks depend on the duration of the audio
                     overlapping: int,
                    ) -> List[torch.Tensor]:
+
 
         """plit the signal into num_chunks equal chunks, 
         each chunk overlapping of overlapping samples
@@ -152,6 +153,38 @@ class Evaluator:
 
         return transformed_signals
 
+    def _save_signals_features(self, signals: torch.Tensor, audio_path: str) -> None:
+        """Save the tensor of signals into disk
+        Args:
+            signals: a tensor of shape (batch, channel, features,..)
+            signal_path: path of the audio, use to infer the name for the saved file
+        """
+
+        # save the signal tensor into self.save_features_path, with the name
+        # song_<filename>.pt for song audio and hum_<filename>.pt for hummed audio
+        filename = '_'.join(audio_path.split('/')[-2:])
+        filename = filename.split('.')[0]
+
+        with open(os.path.join(self.save_features_path, filename), 'wb') as f:
+            torch.save(signals.to('cpu'), f)
+
+    def _retrieve_signals_if_exist(self, audio_path: str )-> torch.Tensor:
+        """Load the signals features from the disk
+        Args:
+            audio_path: path to the audio that want to retrieve the saved features
+                note that this is not the path to the audi features
+        """
+        filename = '_'.join(audio_path.split('/')[-2:])
+        filename = filename.split('.')[0]
+        filepath = os.path.join(self.save_features_path, filename)
+        features = None
+        if os.path.isfile(filepath):
+            features = torch.load(open(filepath, 'rb'))
+            return features
+
+        return features
+        
+
     def _preprocess_and_embed_one_audio(self,
                                         audio_path: str) -> np.ndarray:
         """Preprocess one audio, split it into chunks, transform it and forward
@@ -178,13 +211,7 @@ class Evaluator:
 
             # conver signals into batch of tensor
             signals = torch.cat(signals, 0)
-
-            # save the signal tensor into self.save_features_path, with the name
-            # song_<filename>.pt for song audio and hum_<filename>.pt for hummed audio
-            filename = '_'.join(audio_path.split('/')[-2:])
-            with open(os.path.join(self.save_features_path, filename), 'wb') as f:
-                torch.save(signals.to('cpu'), f)
-
+            self._save_signals_features(signals, audio_path)
         else:
             signals = signals.to(self.device)
 
