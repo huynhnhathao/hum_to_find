@@ -1,7 +1,6 @@
 import logging
 import json
 import os
-
 from typing import Any, List, Tuple
 
 import numpy as np
@@ -13,13 +12,16 @@ import torchaudio
 from constants import *
 from inception_resnet import *
 
-
-
 logger = logging.getLogger()
+if logger is None:
+    handler = logging.StreamHandler()
+    formmater = logging.Formatter('%(asctime)s - %(message)s')
+    handler.setFormatter(formmater)
 
+    logger = logging.getLogger()
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
-# TODO: can not predetermine the num_chunks when inference, or predetermine the num_samples
-# TODO: cache the transformed audio,
 # TODO: Add multiprocessing
 
 class Evaluator:
@@ -38,7 +40,7 @@ class Evaluator:
                 save_embeddings_path: str,
                 save_features_path: str,
                 save_embeddings: bool = True,
-                
+                matched_threshold: float = 1.1
                 ) -> None:
         """
         Args:
@@ -56,6 +58,8 @@ class Evaluator:
             save_embedding: whether to save the embeddings to files or not
             save_embedding_path: path to save the embeddings
             save_features_path: path to folder to cache the transformed features
+            match_threshold: the threshold to consider two sample are match, when
+                compare in Euclidean distance
         """
         self.model = model
         self.annotation = pd.read_csv(annotation_file)
@@ -68,7 +72,7 @@ class Evaluator:
         self.save_embeddings_path = save_embeddings_path
         self.save_features_path = save_features_path
         self.save_embeddings = save_embeddings
-
+        self.matched_threshold = matched_threshold
         # save all song and hum embeddings to measure distances later
         self.all_song_embeddings = []
         self.all_hum_embeddings = []
@@ -123,7 +127,7 @@ class Evaluator:
             signal = torch.nn.functional.pad(signal, last_dim_padding)
         return signal
 
-    def _split_signal(self, signal: torch.Tensor,                               #TODO: num_chunks depend on the duration of the audio
+    def _split_signal(self, signal: torch.Tensor,                               
                     chunk_len: int, overlapping: int,
                    ) -> List[torch.Tensor]:
 
@@ -189,7 +193,6 @@ class Evaluator:
 
         return features
         
-
     def _preprocess_and_embed_one_audio(self,
                                         audio_path: str) -> np.ndarray:
         """Preprocess one audio, split it into chunks, transform it and forward
@@ -202,8 +205,7 @@ class Evaluator:
         # looking for cached features before actually compute it
         
         signals = self._retrieve_signals_if_exist(audio_path)
-        if signals is not None:
-            print('Retrieving cached features')
+
         if signals is None:
             signal, sr = torchaudio.load(audio_path)
             signal = signal.to(self.device)
@@ -227,7 +229,6 @@ class Evaluator:
             embeddings = self.model(signals)            
 
         return embeddings.detach().numpy()
-
 
     def save_embeddings_data(self, embeddings: List[np.ndarray], save_path: str,
                 replace_if_exist: bool = True) -> None:
@@ -253,9 +254,9 @@ class Evaluator:
 
         # loop over all original songs, preprocess, forward it through model and
         # save all the embedding vectors to a file.
-
+        logger.info('Transforming and embedding audios',)
         for i, row in self.annotation.iterrows():
-            print(f'Transforming audio {i+1}/{len(self.annotation)}',)
+            
             song_embeddings = self._preprocess_and_embed_one_audio(
                             os.path.join(self.audio_dir, row['song_path']))
 
@@ -270,8 +271,10 @@ class Evaluator:
 
             self.all_song_embeddings.append(song_data)
             self.all_hum_embeddings.append(hum_data)
+        logger.info("Done embedding audios.")
 
         if self.save_embeddings:
+            logger.info('Saving audio embeddings to files')
             # if embedding file already exist, delete it
             song_embeddings_path = os.path.join(self.save_embeddings_path, 'val_original_song_embeddings.jl')
             hum_embeddings_path = os.path.join(self.save_embeddings_path, 'val_hummed_audio_embeddings.jl')
@@ -279,7 +282,30 @@ class Evaluator:
             self.save_embeddings_data(self.all_song_embeddings, song_embeddings_path)
             self.save_embeddings_data(self.all_hum_embeddings, hum_embeddings_path)
 
-                
+    def l2_compare(self, ) -> None:
+        # loop over all hummed audio:
+        #   loop over all embeddings of the hummed audio:
+        #       loop over all song in the database:
+        #           loop over all embeddings of that song:
+        #           if the hummed embedding match the song embeddings,
+        #           plus 1 match to this song for the hummed audio
+
+        pass
+    def knn_retriever(self, ) -> None:
+        """Use KNN to find the K nearest neighbors to the query embeddings
+        """
+        # construct a dataframe of song_id and embeddings to train knn classifier
+        logger.info('KNN Retriever is working')
+        database_df = pd.DataFrame([], columns = ['id', 'embedding'])
+        for song in self.all_song_embeddings:
+            id = song['id']
+            for embedding in song['embeddings']:
+                row = {'id': id, 'embedding': embedding}
+                database_df = database_df.append(row, ignore_index=True)
+        
+
+        
+
 
 
 if __name__ == '__main__':
@@ -293,6 +319,6 @@ if __name__ == '__main__':
     evaluator = Evaluator(model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, 
                         'l2', 'mel_spectrogram', SAMPLE_RATE,
                         SINGING_THRESHOLD, device, SAVE_EMBEDDING_PATH,
-                        SAVE_FEATURES_PATH, True)
+                        SAVE_FEATURES_PATH, True, MATCHED_THRESHOLD)
 
     evaluator.transform_data()

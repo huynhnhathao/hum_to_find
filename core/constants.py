@@ -29,3 +29,5 @@ NUM_CHUNKS_EACH_AUDIO = 9
 CHUNK_LEN = 32000
 # number of samples overlapping between chunks when evaluating
 CHUNK_OVERLAPPING = 16000
+# The threshold in euclidean distance, lower than this threshold will be a match.
+MATCHED_THRESHOLD = 1.1
