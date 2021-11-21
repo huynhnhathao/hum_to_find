@@ -95,7 +95,7 @@ class HumDataset(Dataset):
             original_signal = self._cut_head_if_necessary(original_signal)
             original_signal = self._cut_tail_if_necessary(original_signal)
             original_signal = self._right_pad_if_necessary(original_signal)
-            original_signals = self._split_signal(original_signal, 16000, 9)
+            original_signals = self._split_signal(original_signal, 16000, NUM_CHUNKS_EACH_AUDIO)
         
             original_signals = self._transformation(original_signals)
             
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
         n_fft=TRANSFORMER_NFFT,
-        hop_length=TRANSFORMER_HOP,
+        hop_length=TRANSFORMER_HOP_LENGTH,
         n_mels=N_MELS
     )
 
