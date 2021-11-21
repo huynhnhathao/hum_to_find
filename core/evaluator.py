@@ -159,21 +159,33 @@ class Evaluator:
 
         Returns: Embedding vectors for each chunk
         """
-
-        signal, sr = torchaudio.load(audio_path)
-        signal = signal.to(self.device)
-        signal = self._resample_if_necessary(signal, sr)
-        signal = self._mix_down_if_necessary(signal)
-        signal = self._cut_head_if_necessary(signal)
-        signal = self._cut_tail_if_necessary(signal)
-        signal = self._right_pad_if_necessary(signal)
-        signals = self._split_signal(signal, 16000, NUM_CHUNKS_EACH_AUDIO)
-
-        signals = self._transformation(signals)
-
-        # conver signals into batch of tensor
-        signals = torch.cat(signals, 0)
+        # looking for cached features before actually compute it
         
+        signals = self._retrieve_signals_if_exist(audio_path)
+        if signals is None:
+            signal, sr = torchaudio.load(audio_path)
+            signal = signal.to(self.device)
+            signal = self._resample_if_necessary(signal, sr)
+            signal = self._mix_down_if_necessary(signal)
+            signal = self._cut_head_if_necessary(signal)
+            signal = self._cut_tail_if_necessary(signal)
+            signal = self._right_pad_if_necessary(signal)
+            signals = self._split_signal(signal, 16000, NUM_CHUNKS_EACH_AUDIO)
+
+            signals = self._transformation(signals)
+
+            # conver signals into batch of tensor
+            signals = torch.cat(signals, 0)
+
+            # save the signal tensor into self.save_features_path, with the name
+            # song_<filename>.pt for song audio and hum_<filename>.pt for hummed audio
+            filename = '_'.join(audio_path.split('/')[-2:])
+            with open(os.path.join(self.save_features_path, filename), 'wb') as f:
+                torch.save(signals.to('cpu'), f)
+
+        else:
+            signals = signals.to(self.device)
+
         with torch.no_grad():
             self.model.eval()
             embeddings = self.model(signals)            
@@ -210,7 +222,7 @@ class Evaluator:
         for i, row in self.annotation.iterrows():
             print(f'Transforming audio {i+1}/{len(self.annotation)}',)
             song_embeddings = self._preprocess_and_embed_one_audio(
-                            os.path.join(self.audio_dir, row['song_path'] ))
+                            os.path.join(self.audio_dir, row['song_path']))
 
             hum_embeddings = self._preprocess_and_embed_one_audio(
                             os.path.join(self.audio_dir, row['hum_path']))

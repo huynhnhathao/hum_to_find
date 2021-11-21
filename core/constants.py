@@ -4,7 +4,6 @@ TRAIN_AUDIO_DIR = "/home/huynhhao/Desktop/hum/data"
 VAL_AUDIO_DIR = '/home/huynhhao/Desktop/hum/data/'
 SAVE_EMBEDDING_PATH = '/home/huynhhao/Desktop/hum/data/cached_embeddings'
 
-
 SECS = 10
 SAMPLE_RATE = 16000
 NUM_SAMPLES = 160000 
