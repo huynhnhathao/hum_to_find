@@ -1,6 +1,7 @@
 import logging
 import json
 import os
+
 from typing import Any, List, Tuple
 
 import numpy as np
@@ -9,12 +10,16 @@ import pandas as pd
 import torch
 import torchaudio
 
-from hum_to_find.core.constants import *
+from constants import *
+from inception_resnet import *
+
+
 
 logger = logging.getLogger()
 
-
+# TODO: cache the transformed audio,
 # TODO: Add multiprocessing
+
 class Evaluator:
     """
     Evaluator class evaluate the given model on the given dataset, using `l2` distance
@@ -30,7 +35,9 @@ class Evaluator:
                 singing_threshold: float,
                 device: str,
                 save_embeddings_path: str,
+                save_features_path: str,
                 save_embeddings: bool = True,
+                
                 ) -> None:
         """
         Args:
@@ -47,6 +54,7 @@ class Evaluator:
             device: cpu or cuda
             save_embedding: whether to save the embeddings to files or not
             save_embedding_path: path to save the embeddings
+            save_features_path: path to folder to cache the transformed features
         """
         self.model = model
         self.annotation = pd.read_csv(annotation_file)
@@ -56,9 +64,9 @@ class Evaluator:
         self.target_sample_rate = target_sample_rate
         self.num_samples = num_samples
         self.singing_threshold = singing_threshold
-        self.do_cache
         self.device = device
         self.save_embeddings_path = save_embeddings_path
+        self.save_features_path = save_features_path
         self.save_embeddings = save_embeddings
 
     def _get_transformation(self, transformation: str) -> Any:
@@ -137,11 +145,10 @@ class Evaluator:
         """transform each signal in signals into mel-spectrogram"""
         transformed_signals = []
         for signal in signals:
-            transformed_signals.append(self.transformation(signal))
+            # add batch dimension
+            transformed_signals.append(self.transformation(signal).unsqueeze(0))
 
         return transformed_signals
-
-
 
     def _preprocess_and_embed_one_audio(self,
                                         audio_path: str) -> np.ndarray:
@@ -160,9 +167,9 @@ class Evaluator:
         signal = self._cut_head_if_necessary(signal)
         signal = self._cut_tail_if_necessary(signal)
         signal = self._right_pad_if_necessary(signal)
-        signal = self._split_signal(signal, 16000, NUM_CHUNKS_EACH_AUDIO)
+        signals = self._split_signal(signal, 16000, NUM_CHUNKS_EACH_AUDIO)
 
-        signals = self._transformation(signal)
+        signals = self._transformation(signals)
 
         # conver signals into batch of tensor
         signals = torch.cat(signals, 0)
@@ -201,14 +208,17 @@ class Evaluator:
         self.all_song_embeddings = []
         self.all_hum_embeddings = []
         for i, row in self.annotation.iterrows():
-            
-            song_embeddings = self._preprocess_and_transform_one_audio(row['song_path'])
-            hum_embeddings = self._preprocess_and_transform_one_audio(row['hum_path'])
+            print(f'Transforming audio {i+1}/{len(self.annotation)}',)
+            song_embeddings = self._preprocess_and_embed_one_audio(
+                            os.path.join(self.audio_dir, row['song_path'] ))
 
-            song_data = {'id': row['song_id'], 'path': row['song_path'], 
+            hum_embeddings = self._preprocess_and_embed_one_audio(
+                            os.path.join(self.audio_dir, row['hum_path']))
+
+            song_data = {'id': row['music_id'], 'path': row['song_path'], 
                         'embeddings': song_embeddings}
             
-            hum_data = {'id': row['song_id'], 'path': row['hum_path'], 
+            hum_data = {'id': row['music_id'], 'path': row['hum_path'], 
                         'embeddings': hum_embeddings}
 
             self.all_song_embeddings.append(song_data)
@@ -216,8 +226,8 @@ class Evaluator:
 
         if self.save_embeddings:
             # if embedding file already exist, delete it
-            song_embeddings_path = os.path.join(self.cached_path, 'original_song.jl')
-            hum_embeddings_path = os.path.join(self.cached_path, 'hummed_audio.jl')
+            song_embeddings_path = os.path.join(self.save_embeddings_path, 'val_original_song_embeddings.jl')
+            hum_embeddings_path = os.path.join(self.save_embeddings_path, 'val_hummed_audio_embeddings.jl')
 
             self.save_data(self.all_song_embeddings, song_embeddings_path)
             self.save_data(self.all_hum_embeddings, hum_embeddings_path)
@@ -225,3 +235,16 @@ class Evaluator:
                 
 
 
+if __name__ == '__main__':
+
+    if torch.cuda.is_available():
+        device = 'cuda'
+    else:
+        device = 'cpu'
+
+    model = InceptionResnetV1(embedding_dims= EMBEDDING_DIMS, )
+    evaluator = Evaluator(model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, 
+                        'l2', 'mel_spectrogram', SAMPLE_RATE, NUM_SAMPLES,
+                        SINGING_THRESHOLD, device, SAVE_EMBEDDING_PATH, True)
+
+    evaluator.transform_data()

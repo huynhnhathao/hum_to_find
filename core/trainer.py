@@ -86,9 +86,9 @@ if __name__ == '__main__':
 
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
-        n_fft=512,
-        hop_length=256,
-        n_mels=96
+        n_fft=TRANSFORMER_NFFT,
+        hop_length=TRANSFORMER_HOP_LENGTH,
+        n_mels=N_MELS
     )
 
     hds = HumDataset(TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,

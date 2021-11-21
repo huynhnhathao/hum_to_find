@@ -1,7 +1,9 @@
 TRAIN_ANNOTATIONS_FILE = "/home/huynhhao/Desktop/hum/hum_to_find/meta_data/train_annotation.csv"
 VAL_ANNOTATION_FILE = '/home/huynhhao/Desktop/hum/hum_to_find/meta_data/val_annotation.csv'
 TRAIN_AUDIO_DIR = "/home/huynhhao/Desktop/hum/data"
-VAL_AUDIO_DIR = ""
+VAL_AUDIO_DIR = '/home/huynhhao/Desktop/hum/data/'
+SAVE_EMBEDDING_PATH = '/home/huynhhao/Desktop/hum/data/cached_embeddings'
+
 
 SECS = 10
 SAMPLE_RATE = 16000
@@ -19,7 +21,7 @@ SINGING_THRESHOLD = 0.1
 DEVICE = 'cpu'
 
 # transformer parameters
-TRANSFORMER_NFFT = 1024
-TRANSFORMER_HOP_LENGTH = 512
-N_MELS = 64
+TRANSFORMER_NFFT = 512
+TRANSFORMER_HOP_LENGTH = 256
+N_MELS = 96
 NUM_CHUNKS_EACH_AUDIO = 9

@@ -205,7 +205,7 @@ class HumDataset(Dataset):
         return all_chunks
 
     def _transformation(self, signals: List[torch.Tensor]) -> List[torch.Tensor]:
-        """transform each signal in signals"""
+        """transform each signal in signals into mel-spectrogram"""
         transformed_signals = []
         for signal in signals:
             transformed_signals.append(self.transformation(signal))
