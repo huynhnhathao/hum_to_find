@@ -90,7 +90,7 @@ if __name__ == '__main__':
         n_mels=96
     )
 
-    hds = HumDataset(TRAIN_ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
+    hds = HumDataset(TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
                     NUM_SAMPLES, SINGING_THRESHOLD, DEVICE)
 
 
