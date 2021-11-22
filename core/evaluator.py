@@ -2,6 +2,7 @@ import logging
 import json
 import os
 import collections
+from re import L
 from typing import Any, List, Tuple, Union, Dict
 
 import numpy as np
@@ -15,12 +16,10 @@ from constants import *
 from inception_resnet import *
 
 logger = logging.getLogger()
-if logger is None:
+if not logger.hasHandlers():
     handler = logging.StreamHandler()
     formmater = logging.Formatter('%(asctime)s - %(message)s')
     handler.setFormatter(formmater)
-
-    logger = logging.getLogger()
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
@@ -258,7 +257,7 @@ class Evaluator:
 
         # loop over all original songs, preprocess, forward it through model and
         # save all the embedding vectors to a file.
-        for i, row in self.annotation.iterrows():
+        for _, row in self.annotation.iterrows():
             
             song_embeddings = self._preprocess_and_embed_one_audio(
                             os.path.join(self.audio_dir, row['song_path']))
@@ -278,7 +277,10 @@ class Evaluator:
 
         if self.save_embeddings:
             logger.info('Saving audio embeddings to files')
-            # if embedding file already exist, delete it
+            # check if the dir exist, if not, create it
+            if not os.path.isdir(self.save_embeddings_path):
+                os.mkdir(self.save_embeddings_path)
+
             song_embeddings_path = os.path.join(self.save_embeddings_path, 'val_original_song_embeddings.jl')
             hum_embeddings_path = os.path.join(self.save_embeddings_path, 'val_hummed_audio_embeddings.jl')
 
@@ -307,7 +309,7 @@ class Evaluator:
         100 neighbors. Then we will rank those neighbors base on the number of times
         they appear in our 100 neigbors, and select top 10 neighbors.
 
-        # NOTE: Below are ideas, not yet implemented.
+        # NOTE: distance compare are ideas, not yet implemented.
         If neighbors has the same rank, we will use their distance to rank them, 
         The smaller the distance, the higher the rank of that neigbor.
 
@@ -325,17 +327,17 @@ class Evaluator:
         for embedding in embeddings:
             embedding = np.array(embedding).reshape(-1, EMBEDDING_DIMS)
             distances, neighbors = knn.kneighbors(embedding, NUM_SONG_RETRIEVED_PER_QUERY)
-            all_neighbors.extend(neighbors)
-            all_distances.extend(distances)
+            all_neighbors.extend(neighbors[0].tolist())
+            all_distances.extend(distances[0].tolist())
 
         counter = collections.Counter(all_neighbors)
         predictions = counter.most_common(NUM_SONG_RETRIEVED_PER_QUERY)
         # extract the indices of song from counter most common
         predictions = [x[0] for x in predictions]
         # extract the song ids from indices
-        song_ids = [self.database_df.loc[index, 'music_id'] for index in predictions]
+        song_ids = [self.database_df.loc[index, 'id'] for index in predictions]
 
-        result = result.extend(song_ids)
+        result.extend(song_ids)
         return result
 
 
@@ -361,7 +363,7 @@ class Evaluator:
         # in the val set. The inner list: [hum_file_name, pred1, pred2,..,pred10]
     
         predictions = []
-        for hummed_embedding in self.all_hummed_embeddings:
+        for hummed_embedding in self.all_hum_embeddings:
             pred = self.query_one_hum(hummed_embedding, knn, )
             predictions.append(pred)
 
@@ -386,7 +388,7 @@ class Evaluator:
                 all_rr.append(0)
         return np.mean(all_rr)
 
-        
+
     def evaluate(self, retrieving_method: str = 'knn',
                 create_df: bool = False ) -> pd.DataFrame:
         """
@@ -402,20 +404,18 @@ class Evaluator:
         logger.info(f'Start evaluating, using annotation {self.annotation_path}')
         logger.info('Transforming and embedding audios')
         self.transform_data()
-        logger.info(f'Building and retrieving data using {retrieving_method}')
+
+        logger.info(f'Building and retrieving songs using {retrieving_method}')
         predictions = self.knn_retriever()
 
         logger.info('Computing mean reciprocal rank')
-        mrr = self.compute_mean_reciprocal_rank(self, predictions)
+        mrr = self.compute_mean_reciprocal_rank( predictions)
         logger.info(f'Mean reciprocal rank = {mrr}')
 
         return None
 
 
         
-
-
-
 if __name__ == '__main__':
 
     if torch.cuda.is_available():
@@ -425,8 +425,8 @@ if __name__ == '__main__':
 
     model = InceptionResnetV1(embedding_dims= EMBEDDING_DIMS, )
     evaluator = Evaluator(model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, 
-                        'l2', 'mel_spectrogram', SAMPLE_RATE,
+                        'euclidean', 'mel_spectrogram', SAMPLE_RATE,
                         SINGING_THRESHOLD, device, SAVE_EMBEDDING_PATH,
                         SAVE_FEATURES_PATH, True, MATCHED_THRESHOLD)
 
-    evaluator.transform_data()
+    evaluator.evaluate()
