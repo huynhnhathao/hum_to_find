@@ -148,12 +148,10 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(inception_resnet.parameters(), 
                                 lr = LEARNING_RATE)
     trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,
-                    EVAL_EACH_NUM_EPOCHS, EPOCHS, CHECKPOINT_EPOCHS, device,
+                    EVAL_EACH_NUM_EPOCHS, CHECKPOINT_EPOCHS, EPOCHS, device,
                     SAVE_MODEL_PATH)
                     
 
     trainer.train()
-
-    logger.info('Finish the job.')
 
 
