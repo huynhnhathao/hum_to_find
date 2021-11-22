@@ -108,17 +108,18 @@ def _get_anchor_negative_triplet_mask(labels):
     # we have encode the information of belong to the same song into the id of the sample
     # if id1 < id2 + 9 or id2 < id1 + 9, then they are possibly in the same song, 
     # and should not become a negative tuple.
-    mask = []
-    for i in labels:
-        row = []
-        for j in labels:
-            if i.item() in np.arange(j.item() - 8, j.item() + 9):
-                row.append(False)
-            else:
-                row.append(True)
-        mask.append(row)
     
-    return torch.tensor(mask, device = DEVICE)
+    # mask = []
+    # for i in labels:
+    #     row = []
+    #     for j in labels:
+    #         if i.item() in np.arange(j.item() - 8, j.item() + 9):
+    #             row.append(False)
+    #         else:
+    #             row.append(True)
+    #     mask.append(row)
+    
+    return ~(labels.unsqueeze(0) == labels.unsqueeze(1))
 
 
 # Cell

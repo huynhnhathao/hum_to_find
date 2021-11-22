@@ -66,7 +66,6 @@ class HumDataset(Dataset):
     def _load_cached_if_exist(self,)-> bool:
         """Load data in self.save_features_path if exist"""
 
-
         if os.path.isfile(self.save_features_path):
             logger.info(f'Loading train features data from {self.save_features_path}')
             self.samples = torch.load(self.save_features_path)
@@ -76,6 +75,7 @@ class HumDataset(Dataset):
 
     def preprocess_and_load_all_data(self) -> None:
         """This method preprocess and load all data into memory, save to self.samples"""
+
         logger.info('Loading all data to memory...')
         for index in range(len(self.annotations)):
 
@@ -104,9 +104,9 @@ class HumDataset(Dataset):
 
             hum_signals = self._transformation(hum_signals)
 
-            for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
+            for _, (original, hum) in enumerate( zip(original_signals, hum_signals)):
 
-                this_label = label + i 
+                this_label = label
 
                 original_sample = (original, this_label)
                 hum_sample = (hum, this_label)
@@ -126,13 +126,10 @@ class HumDataset(Dataset):
         self.save_features_data()
         logger.info('Data loaded.')
 
-
     def save_features_data(self,) -> None:
         """Save all transformed features of samples to self.save_features_path"""
         logger.info(f'Saving all features data into {self.save_features_path}')
         torch.save(self.samples, self.save_features_path)
-
-
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
         """Get item must remember which sample is previously get, then the later
