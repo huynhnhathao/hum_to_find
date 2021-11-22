@@ -7,7 +7,8 @@ import torchaudio
 from torch import nn 
 from torch.utils.data import DataLoader
 
-import numpy as np 
+import numpy as np
+from evaluator import Evaluator 
 
 from preprocess_data import HumDataset
 from inception_resnet import *
@@ -28,12 +29,15 @@ logger.setLevel(logging.INFO)
 class Trainer:
     
     def __init__(self, model, dataloader,
-                loss_fn, optimizer, epochs:int, device: str) -> None:
+                loss_fn, optimizer, transformation, 
+                eval_each_num_epochs: int, epochs:int, device: str) -> None:
 
         self.model = model
         self.dataloader = dataloader
         self.loss_fn = loss_fn
         self.optimizer = optimizer
+        self.transformation = transformation
+        self.eval_each_num_epochs = eval_each_num_epochs
         self.epochs = epochs
         self.device = device
         
@@ -54,10 +58,17 @@ class Trainer:
             self.optimizer.step()
             epoch_loss.append(loss.detach().item())
             _positive_fractions.append(positive_rate)
-            logger.info(f'positive triple fraction {(positive_rate)}')
 
         logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
-        logger.info(f'Epoch positive triple fraction {np.mean(_positive_fractions)}')
+
+    def evaluate(self) -> None:
+        """Evaluate model on val data, using mean reciprocal rank"""
+
+        evaluator = Evaluator(self.model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR,
+                        'euclidean', self.transformation, SAMPLE_RATE,
+                        SINGING_THRESHOLD, self.device, SAVE_EMBEDDING_PATH, 
+                        SAVE_FEATURES_PATH )
+        evaluator.evaluate()
 
 
     def train(self, )-> None:
@@ -71,6 +82,8 @@ class Trainer:
             self.epoch_time.append(time_spent)
             logger.info(f"Estimated time per epoch: {np.mean(self.epoch_time)}-minutes")
             logger.info(f"Estimated remaining time: {(self.epochs - i - 1)*np.mean(self.epochs)}-minutes")
+            if (i + 1) % self.eval_each_num_epochs == 0:
+                self.evaluate() 
         logger.info('Finish training.')
 
 
@@ -104,9 +117,10 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(inception_resnet.parameters(), 
                                 lr = LEARNING_RATE)
     trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,
+                    mel_spectrogram, EVAL_EACH_NUM_EPOCHS,
                     EPOCHS, device)
     
-    # trainer.train()
+    trainer.train()
 
     torch.save(trainer.model.state_dict(), '/home/huynhhao/Desktop/hum/inception_resnet.pt')
 

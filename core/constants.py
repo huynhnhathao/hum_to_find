@@ -33,3 +33,5 @@ CHUNK_OVERLAPPING = 16000
 MATCHED_THRESHOLD = 1.1
 
 NUM_SONG_RETRIEVED_PER_QUERY = 10
+# after this number of epoch, eval on val data
+EVAL_EACH_NUM_EPOCHS = 1

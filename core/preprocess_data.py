@@ -8,7 +8,7 @@ import torchaudio
 import pandas as pd
 import numpy as np
 
-from hum_to_find.core.constants import *
+from constants import *
 
 # TODO: cache transformed data into disk
 # Test everything here, when run we bring it to colab to run on GPU

@@ -16,12 +16,12 @@ from constants import *
 from inception_resnet import *
 
 logger = logging.getLogger()
-if not logger.hasHandlers():
-    handler = logging.StreamHandler()
-    formmater = logging.Formatter('%(asctime)s - %(message)s')
-    handler.setFormatter(formmater)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
+# if not logger.hasHandlers():
+#     handler = logging.StreamHandler()
+#     formmater = logging.Formatter('%(asctime)s - %(message)s')
+#     handler.setFormatter(formmater)
+#     logger.addHandler(handler)
+#     logger.setLevel(logging.INFO)
 
 # TODO: Add multiprocessing
 # NOTE: get song id will be broken if change val_annotation file, need manual ajusted
