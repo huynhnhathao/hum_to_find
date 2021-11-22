@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import Tuple, List
 
 import torch
@@ -13,6 +14,8 @@ from constants import *
 # TODO: cache transformed data into disk
 # Test everything here, when run we bring it to colab to run on GPU
 
+
+logger = logging.getLogger()
 
 class HumDataset(Dataset):
 
@@ -44,6 +47,7 @@ class HumDataset(Dataset):
         self.num_samples = num_samples
         self.singing_threshold = singing_threshold
 
+
         # My clever (or dirty?) way to solve the problem: only 2 secs of one audio
         # create one sample, so one (original, hum) tuple can create multiple
         # samples, but __getitem__ only return one (sample, label), how do we 
@@ -51,41 +55,23 @@ class HumDataset(Dataset):
         # we save it into samples list, and retrieved it when samples still has 
         # data.
         self.samples = []
-
-        self.random_indices = list(np.random.randint(0, len(self.annotations), len(self.annotations)))
+        
+        self.preprocess_and_load_all_data()
+        
+        # keep track of the sample index in getitem
+        self.sample_index = 0
 
     def __len__(self) -> int:
         # This method is just a dummy method, the random sampling job of the data
         # is left for this class, I dont know if there is a better way.
-        return len(self.annotations)*9
+        return len(self.samples)
 
-    def __getitem__(self, index: int
-                ) -> Tuple[Tuple[torch.Tensor, torch.tensor], torch.Tensor]:
+    def preprocess_and_load_all_data(self) -> None:
+        """This method preprocess and load all data into memory, save to self.samples"""
+        logger.info('Loading all data to memory...')
+        for index in range(len(self.annotations)):
 
-        """
-        Each item indexing one song id, each song id has two audio: the
-        original song and the hummed song. Each audio will go through:
-            1. Pre-cut the left audio until it starts to sing
-            2. Pad/cut each audio to has 10 second.
-            3. Split the audio into 2-sec chunks, overlapping 1 sec.
-
-        Finally, one song id/item will give 9 tuple of (original, hummed) sample.
-
-        Returns:
-            9 of this ((original, hummed), song_id)
-
-        """
-        if self.samples:
-            return self.samples.pop()
-        else:
-            if self.random_indices:
-                index = self.random_indices.pop()
-                original_path, hum_path = self._get_audio_sample_path(index)
-            else:
-                self.random_indices = list(np.random.randint(0, len(self.annotations), len(self.annotations)))
-                index = self.random_indices.pop()
-                original_path, hum_path = self._get_audio_sample_path(index)
-
+            original_path, hum_path = self._get_audio_sample_path(index)
             label = self._get_audio_sample_label(index)
 
             original_signal, original_sr = torchaudio.load(original_path)
@@ -98,7 +84,6 @@ class HumDataset(Dataset):
             original_signals = self._split_signal(original_signal, 16000, NUM_CHUNKS_EACH_AUDIO)
         
             original_signals = self._transformation(original_signals)
-            
 
             hum_signal, hum_sr = torchaudio.load(hum_path)
             hum_signal = hum_signal.to(self.device)
@@ -112,16 +97,7 @@ class HumDataset(Dataset):
             hum_signals = self._transformation(hum_signals)
 
             for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
-                # We don't want 2 sample of the same song to become (anchor, negative)
-                # so we will do a trick into the label of sameples belong to the 
-                # same song: every sameples belong the the same sone will has id
-                # in range label + 9. with this trick, we can imply
-                # which samples are actually belong to the same song.
-                # because the id range are very large, so this should not be a problem
-                # however, this is still a dirty workaround, until I know a better 
-                # way. There will have cases where valid negative become invalid 
-                # because of this trick, but it should not be a problem because
-                # given the batch size and the random selection of sample.
+
                 this_label = label + i 
 
                 original_sample = (original, this_label)
@@ -130,8 +106,85 @@ class HumDataset(Dataset):
                 self.samples.append(original_sample)
                 self.samples.append(hum_sample)
 
+        logger.info('Data loaded.')
 
-        return self.samples.pop()
+    def __getitem__(self, index: int) -> torch.Tensor:
+        return self.samples[index]
+
+
+
+    # def __getitem__(self, index: int
+    #             ) -> Tuple[Tuple[torch.Tensor, torch.tensor], torch.Tensor]:
+
+    #     """
+    #     Each item indexing one song id, each song id has two audio: the
+    #     original song and the hummed song. Each audio will go through:
+    #         1. Pre-cut the left audio until it starts to sing
+    #         2. Pad/cut each audio to has 10 second.
+    #         3. Split the audio into 2-sec chunks, overlapping 1 sec.
+
+    #     Finally, one song id/item will give 9 tuple of (original, hummed) sample.
+
+    #     Returns:
+    #         9 of this ((original, hummed), song_id)
+
+    #     """
+    #     if self.samples:
+    #         return self.samples.pop()
+    #     else:
+    #         if self.random_indices:
+    #             index = self.random_indices.pop()
+    #             original_path, hum_path = self._get_audio_sample_path(index)
+    #         else:
+    #             self.random_indices = list(np.random.randint(0, len(self.annotations), len(self.annotations)))
+    #             index = self.random_indices.pop()
+    #             original_path, hum_path = self._get_audio_sample_path(index)
+
+    #         label = self._get_audio_sample_label(index)
+
+    #         original_signal, original_sr = torchaudio.load(original_path)
+    #         original_signal = original_signal.to(self.device)
+    #         original_signal = self._resample_if_necessary(original_signal, original_sr)
+    #         original_signal = self._mix_down_if_necessary(original_signal)
+    #         original_signal = self._cut_head_if_necessary(original_signal)
+    #         original_signal = self._cut_tail_if_necessary(original_signal)
+    #         original_signal = self._right_pad_if_necessary(original_signal)
+    #         original_signals = self._split_signal(original_signal, 16000, NUM_CHUNKS_EACH_AUDIO)
+        
+    #         original_signals = self._transformation(original_signals)
+            
+
+    #         hum_signal, hum_sr = torchaudio.load(hum_path)
+    #         hum_signal = hum_signal.to(self.device)
+    #         hum_signal = self._resample_if_necessary(hum_signal, hum_sr)
+    #         hum_signal = self._mix_down_if_necessary(hum_signal)
+    #         hum_signal = self._cut_head_if_necessary(hum_signal)
+    #         hum_signal = self._cut_tail_if_necessary(hum_signal)
+    #         hum_signal = self._right_pad_if_necessary(hum_signal)
+    #         hum_signals = self._split_signal(hum_signal, 16000, NUM_CHUNKS_EACH_AUDIO)
+
+    #         hum_signals = self._transformation(hum_signals)
+
+    #         for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
+    #             # We don't want 2 sample of the same song to become (anchor, negative)
+    #             # so we will do a trick into the label of sameples belong to the 
+    #             # same song: every sameples belong the the same sone will has id
+    #             # in range label + 9. with this trick, we can imply
+    #             # which samples are actually belong to the same song.
+    #             # because the id range are very large, so this should not be a problem
+    #             # however, this is still a dirty workaround, until I know a better 
+    #             # way. There will have cases where valid negative become invalid 
+    #             # because of this trick, but it should not be a problem because
+    #             # given the batch size and the random selection of sample.
+    #             this_label = label + i 
+
+    #             original_sample = (original, this_label)
+    #             hum_sample = (hum, this_label)
+
+    #             self.samples.append(original_sample)
+    #             self.samples.append(hum_sample)
+    #     return self.samples.pop()
+
 
     def _cut_head_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
         """Cut the head of the signal until someone start singing
@@ -161,7 +214,7 @@ class HumDataset(Dataset):
     def _resample_if_necessary(self, signal: torch.Tensor, sr: int) -> torch.Tensor:
         """Resample the signal with sample rate = sr into self.target_sample_rate"""
         if sr != self.target_sample_rate:
-            resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate)
+            resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate).to(self.device)
             signal = resampler(signal)
         return signal
 
