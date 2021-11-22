@@ -31,3 +31,5 @@ CHUNK_LEN = 32000
 CHUNK_OVERLAPPING = 16000
 # The threshold in euclidean distance, lower than this threshold will be a match.
 MATCHED_THRESHOLD = 1.1
+
+NUM_SONG_RETRIEVED_PER_QUERY = 10

@@ -1,7 +1,8 @@
 import logging
 import json
 import os
-from typing import Any, List, Tuple, Union
+import collections
+from typing import Any, List, Tuple, Union, Dict
 
 import numpy as np
 import pandas as pd
@@ -299,9 +300,42 @@ class Evaluator:
         """
         Compare the hum_embeddings to the database embeddings and return 10
         most likely song id.
-        The return list is like: [0000.mp3, 0, 1, 2, ..., 9]
-        """
+
+        For each chunk's embedding in the hum, we can query 10 nearest neighbors
+        of that chunk's embedding, which means if we have 10 chunk we will have 
+        100 neighbors. Then we will rank those neighbors base on the number of times
+        they appear in our 100 neigbors, and select top 10 neighbors.
+
+        # NOTE: Below are ideas, not yet implemented.
+        If neighbors has the same rank, we will use their distance to rank them, 
+        The smaller the distance, the higher the rank of that neigbor.
+
+        Returns:  The return list is like: [0000.mp3, 0, 1, 2, ..., 9], where the
+            elements from [1:] are the indices of the songs in our database, note 
+            that they are the indices, not the song ids
         
+        """
+        hum_filename = hum_embeddings['path'].split('/')[-1]
+        result = [hum_filename, ]
+        # neighbor pool
+        all_neighbors = []
+        all_distances = []
+        embeddings = hum_embeddings['embeddings']
+        for embedding in embeddings:
+            embedding = np.array(embedding).reshape(-1, EMBEDDING_DIMS)
+            distances, neighbors = knn.kneighbors(embedding, NUM_SONG_RETRIEVED_PER_QUERY)
+            all_neighbors.extend(neighbors)
+            all_distances.extend(distances)
+
+        counter = collections.Counter(all_neighbors)
+        predictions = counter.most_common(NUM_SONG_RETRIEVED_PER_QUERY)
+        # extract the indices of song from counter most common
+        predictions = [x[0] for x in predictions]
+        # extract the song ids from indices
+        song_ids = [database_df.loc[index, 'music_id'] for index in predictions]
+
+        result = result.extend(song_ids)
+        return result
 
 
     def knn_retriever(self, ) -> List[List[Any]]:
@@ -319,8 +353,9 @@ class Evaluator:
         knn = neighbors.KNeighborsClassifier(n_neighbors= 10, weights= 'distance', 
                                     metric= 'euclidean')
 
-        
-        knn.fit(database_df['embedding'].values)
+        df_data = np.vstack(database_df['embedding'].values)
+        labels = database_df['id'].astype(int).values
+        knn.fit(df_data, labels)
         # preds is a list of list contains all predictions for every hum audio 
         # in the val set. The inner list: [hum_file_name, pred1, pred2,..,pred10]
     
@@ -330,6 +365,8 @@ class Evaluator:
             predictions.append(pred)
 
         return predictions
+
+        def compute_
 
     def evaluate(self, retrieving_method: str = 'knn',
                 create_df: bool = False ) -> pd.DataFrame:
