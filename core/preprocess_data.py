@@ -219,11 +219,8 @@ if __name__ == "__main__":
     SAMPLE_RATE = 16000
     NUM_SAMPLES = 160000 
 
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-    print(f"Using device {device}")
+
+    print(f"Using device {DEVICE}")
 
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
@@ -238,7 +235,7 @@ if __name__ == "__main__":
                             SAMPLE_RATE,
                             NUM_SAMPLES,
                             SINGING_THRESHOLD,
-                            device)
+                            DEVICE)
     sampler = torch.utils.data.RandomSampler(usd)
     dataloader = torch.utils.data.DataLoader(usd, batch_size = 16, sampler = sampler)
     batch = next(iter(dataloader))

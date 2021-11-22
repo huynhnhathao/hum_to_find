@@ -69,7 +69,7 @@ class Trainer:
         _positive_fractions = []
         for inputs, targets in self.dataloader:
             # string target to int target
-            inputs, targets = inputs.to(device), targets.to(device)
+            inputs, targets = inputs.to(self.device), targets.to(self.device)
             embeddings = self.model(inputs)
             loss, positive_rate = self.loss_fn(targets, embeddings, 1.0)
             self.optimizer.zero_grad()
@@ -121,12 +121,7 @@ class Trainer:
 
 if __name__ == '__main__':
 
-    if torch.cuda.is_available():
-        device = 'cuda'
-    else:
-        device = 'cpu'
-
-    logger.info(f'Using {device}')
+    logger.info(f'Using {DEVICE}')
 
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
@@ -142,13 +137,13 @@ if __name__ == '__main__':
     random_sampler = torch.utils.data.RandomSampler(hds, )
     train_dataloader = DataLoader(hds, BATCH_SIZE, sampler = random_sampler)
 
-    inception_resnet = InceptionResnetV1(embedding_dims = EMBEDDING_DIMS )
+    inception_resnet = InceptionResnetV1(embedding_dims = EMBEDDING_DIMS ).to(DEVICE)
 
     loss_fn = batch_hard_triplet_loss
     optimizer = torch.optim.Adam(inception_resnet.parameters(), 
                                 lr = LEARNING_RATE)
     trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,
-                    EVAL_EACH_NUM_EPOCHS, CHECKPOINT_EPOCHS, EPOCHS, device,
+                    EVAL_EACH_NUM_EPOCHS, CHECKPOINT_EPOCHS, EPOCHS, DEVICE,
                     SAVE_MODEL_PATH)
                     
 

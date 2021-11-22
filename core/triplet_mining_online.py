@@ -8,6 +8,9 @@ __all__ = ['batch_hard_triplet_loss', 'batch_all_triplet_loss']
 import numpy as np
 import torch
 import torch.nn.functional as F
+
+from constants import *
+
 def _pairwise_distances(embeddings: torch.Tensor,
                         squared: bool=False) -> torch.Tensor:
     """Compute the 2D matrix of distances between all the embeddings.
@@ -115,7 +118,7 @@ def _get_anchor_negative_triplet_mask(labels):
                 row.append(True)
         mask.append(row)
     
-    return torch.tensor(mask)
+    return torch.tensor(mask, device = DEVICE)
 
 
 # Cell

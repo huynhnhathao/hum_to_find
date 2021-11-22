@@ -419,15 +419,10 @@ class Evaluator:
         
 if __name__ == '__main__':
 
-    if torch.cuda.is_available():
-        device = 'cuda'
-    else:
-        device = 'cpu'
-
     model = InceptionResnetV1(embedding_dims= EMBEDDING_DIMS, )
     evaluator = Evaluator(model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, 
                         'euclidean', 'mel_spectrogram', SAMPLE_RATE,
-                        SINGING_THRESHOLD, device, SAVE_EMBEDDING_PATH,
+                        SINGING_THRESHOLD, DEVICE, SAVE_EMBEDDING_PATH,
                         SAVE_FEATURES_PATH, True, MATCHED_THRESHOLD)
 
     evaluator.evaluate()
