@@ -1,0 +1,3 @@
+2021-11-22 10:02:10,801 - Using cpu
+2021-11-22 10:02:10,814 - Loading all data to memory...
+2021-11-22 10:02:16,567 - Save all features data into /home/huynhhao/Desktop/hum/data/cached_features/train

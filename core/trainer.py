@@ -16,16 +16,18 @@ from inception_resnet import *
 from triplet_mining_online import batch_hard_triplet_loss, batch_all_triplet_loss
 from constants import *
 
-handler = logging.StreamHandler()
+
+stream_handler = logging.StreamHandler()
+file_handler = logging.FileHandler(LOG_FILE_PATH)
 formmater = logging.Formatter('%(asctime)s - %(message)s')
-handler.setFormatter(formmater)
+stream_handler.setFormatter(formmater)
+file_handler.setFormatter(formmater)
 
 logger = logging.getLogger()
-logger.addHandler(handler)
+logger.addHandler(stream_handler)
+logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
 
-#TODO: evaluate method, save the embedding vectors when training, then after 
-# K epochs, use the saved embedding vectors to evaluate on the train set.
 
 class Trainer:
     
@@ -86,7 +88,7 @@ class Trainer:
         evaluator = Evaluator(self.model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR,
                         'euclidean', 'mel_spectrogram', SAMPLE_RATE,
                         SINGING_THRESHOLD, self.device, SAVE_EMBEDDING_PATH, 
-                        SAVE_FEATURES_PATH )
+                        SAVE_VAL_FEATURES_PATH )
         evaluator.evaluate()
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
@@ -131,7 +133,7 @@ if __name__ == '__main__':
     )
 
     hds = HumDataset(TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
-                    NUM_SAMPLES, SINGING_THRESHOLD, DEVICE)
+                    NUM_SAMPLES, SINGING_THRESHOLD, DEVICE, SAVE_TRAIN_FEATURES_PATH)
 
 
     random_sampler = torch.utils.data.RandomSampler(hds, )
@@ -149,4 +151,6 @@ if __name__ == '__main__':
 
     trainer.train()
 
+
+# TODO: save evaluating data on memory, do not reload
 

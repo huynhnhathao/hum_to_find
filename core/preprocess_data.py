@@ -26,7 +26,8 @@ class HumDataset(Dataset):
                  target_sample_rate: int,
                  num_samples: int,
                  singing_threshold: int,
-                 device: str) -> None:
+                 device: str,
+                 save_features_path: str) -> None:
 
         """
         Args:
@@ -46,25 +47,32 @@ class HumDataset(Dataset):
         self.target_sample_rate = target_sample_rate
         self.num_samples = num_samples
         self.singing_threshold = singing_threshold
+        self.save_features_path = save_features_path
 
 
-        # My clever (or dirty?) way to solve the problem: only 2 secs of one audio
-        # create one sample, so one (original, hum) tuple can create multiple
-        # samples, but __getitem__ only return one (sample, label), how do we 
-        # remember the old samples created but not yet used?
-        # we save it into samples list, and retrieved it when samples still has 
-        # data.
-        self.samples = []
-        
-        self.preprocess_and_load_all_data()
-        
-        # keep track of the sample index in getitem
-        self.sample_index = 0
+        self.samples = {}
+        if not self._load_cached_if_exist():
+            self.preprocess_and_load_all_data()
+
+        self.all_keys = list(self.samples.keys())
+        # keep track of the last sample label
+        self.last_sample_label = None
 
     def __len__(self) -> int:
         # This method is just a dummy method, the random sampling job of the data
         # is left for this class, I dont know if there is a better way.
-        return len(self.samples)
+        return len(self.all_keys)
+    
+    def _load_cached_if_exist(self,)-> bool:
+        """Load data in self.save_features_path if exist"""
+
+
+        if os.path.isfile(self.save_features_path):
+            logger.info(f'Loading train features data from {self.save_features_path}')
+            self.samples = torch.load(self.save_features_path)
+            return True
+
+        return False
 
     def preprocess_and_load_all_data(self) -> None:
         """This method preprocess and load all data into memory, save to self.samples"""
@@ -103,14 +111,55 @@ class HumDataset(Dataset):
                 original_sample = (original, this_label)
                 hum_sample = (hum, this_label)
 
-                self.samples.append(original_sample)
-                self.samples.append(hum_sample)
+                song_key = str(this_label) + '_song'
+                hum_key = str(this_label)+'_hum'
 
+                if song_key not in self.samples.keys():
+                    self.samples[song_key] = original_sample
+                else:
+                    logger.info(f'Key Conflicting at {song_key}, ignore new sample')
+                if hum_key not in self.samples.keys():
+                    self.samples[hum_key] = hum_sample
+                else:
+                    logger.info(f'Key conflicting at {hum_key}, ignore new sample')
+
+        self.save_features_data()
         logger.info('Data loaded.')
 
-    def __getitem__(self, index: int) -> torch.Tensor:
-        return self.samples[index]
 
+    def save_features_data(self,) -> None:
+        """Save all transformed features of samples to self.save_features_path"""
+        logger.info(f'Saving all features data into {self.save_features_path}')
+        torch.save(self.samples, self.save_features_path)
+
+
+
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
+        """Get item must remember which sample is previously get, then the later
+        sample will be the positive sample of the previous.
+        This means that an epoch will not loop through all data, since the later
+        sample depend on the previous sample.
+        """
+        sample_key = self.all_keys[index]
+        if self.last_sample_label is None:
+            self.last_sample_label = sample_key
+            return self.samples[sample_key]
+        # if the last sample is not None, find the positive sample of it
+        else:
+            sample_keys = sample_key.split('_')
+            if sample_keys[1] == 'song':
+
+                positive_sample_label = sample_keys[0]+'_hum'
+            else:
+                positive_sample_label = sample_keys[0] + '_song'
+            # complete one tuple of (anchor, positive), reset the last sample label
+            self.last_sample_label = None
+            if positive_sample_label in self.all_keys:
+                return self.samples[positive_sample_label]
+            else:
+                logger.info(f'{positive_sample_label} is not found!')
+                self.last_sample_label = self.all_keys[index]
+                return self.samples[self.all_keys[index]]
 
 
     # def __getitem__(self, index: int

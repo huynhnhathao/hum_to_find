@@ -423,6 +423,6 @@ if __name__ == '__main__':
     evaluator = Evaluator(model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, 
                         'euclidean', 'mel_spectrogram', SAMPLE_RATE,
                         SINGING_THRESHOLD, DEVICE, SAVE_EMBEDDING_PATH,
-                        SAVE_FEATURES_PATH, True, MATCHED_THRESHOLD)
+                        SAVE_VAL_FEATURES_PATH, True, MATCHED_THRESHOLD)
 
     evaluator.evaluate()
