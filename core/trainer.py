@@ -1,6 +1,7 @@
 import logging
-from typing import Tuple, List
+from typing import Tuple, List, Union
 import time
+import os
 
 import torch
 import torchaudio
@@ -29,17 +30,35 @@ logger.setLevel(logging.INFO)
 class Trainer:
     
     def __init__(self, model, dataloader,
-                loss_fn, optimizer, transformation, 
-                eval_each_num_epochs: int, epochs:int, device: str) -> None:
+                loss_fn, optimizer, eval_each_num_epochs: int,
+                checkpoint_epochs: int, epochs:int, device: str,
+                save_model_path: str) -> None:
+        """
+        Trainer class to train the embedding model
+        
+        Args:
+            model: pytorch model to train
+            dataloader:
+            loss_fn:
+            optimizer:
+            eval_each_num_epochs: after this number of epochs, do one evaluation
+                on val data
+            checkpoint_epochs: save model after this number of epochs
+            epochs: number of training epochs
+            device: 
+            save_model_path: path to save the model
+        """
+
 
         self.model = model
         self.dataloader = dataloader
         self.loss_fn = loss_fn
         self.optimizer = optimizer
-        self.transformation = transformation
         self.eval_each_num_epochs = eval_each_num_epochs
+        self.checkpoint_epochs = checkpoint_epochs
         self.epochs = epochs
         self.device = device
+        self.save_model_path = save_model_path
         
         # save training time for each epoch to estimate remaining time
         self.epoch_time = []
@@ -65,10 +84,18 @@ class Trainer:
         """Evaluate model on val data, using mean reciprocal rank"""
 
         evaluator = Evaluator(self.model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR,
-                        'euclidean', self.transformation, SAMPLE_RATE,
+                        'euclidean', 'mel_spectrogram', SAMPLE_RATE,
                         SINGING_THRESHOLD, self.device, SAVE_EMBEDDING_PATH, 
                         SAVE_FEATURES_PATH )
         evaluator.evaluate()
+
+    def save_model(self, current_epoch: Union[int, str]) -> None:
+        """save the current model into self.save_model_path"""
+        
+        filename = f'inception_resnet_epoch{current_epoch}.pt'
+        filepath = os.path.join(self.save_model_path, filename)
+        logger.info(f'Saving model into {filepath}')
+        torch.save(self.model.state_dict(), filepath)
 
 
     def train(self, )-> None:
@@ -84,6 +111,10 @@ class Trainer:
             logger.info(f"Estimated remaining time: {(self.epochs - i - 1)*np.mean(self.epochs)}-minutes")
             if (i + 1) % self.eval_each_num_epochs == 0:
                 self.evaluate() 
+            if (i+1) % self.checkpoint_epochs == 0:
+                self.save_model(i+1)
+        
+        self.save_model('last_epoch')
         logger.info('Finish training.')
 
 
@@ -117,11 +148,12 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(inception_resnet.parameters(), 
                                 lr = LEARNING_RATE)
     trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,
-                    mel_spectrogram, EVAL_EACH_NUM_EPOCHS,
-                    EPOCHS, device)
-    
+                    EVAL_EACH_NUM_EPOCHS, EPOCHS, CHECKPOINT_EPOCHS, device,
+                    SAVE_MODEL_PATH)
+                    
+
     trainer.train()
 
-    torch.save(trainer.model.state_dict(), '/home/huynhhao/Desktop/hum/inception_resnet.pt')
-
     logger.info('Finish the job.')
+
+

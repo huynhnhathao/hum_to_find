@@ -4,6 +4,8 @@ TRAIN_AUDIO_DIR = "/home/huynhhao/Desktop/hum/data"
 VAL_AUDIO_DIR = '/home/huynhhao/Desktop/hum/data/'
 SAVE_EMBEDDING_PATH = '/home/huynhhao/Desktop/hum/data/cached_embeddings'
 SAVE_FEATURES_PATH = "/home/huynhhao/Desktop/hum/data/cached_features/val"
+SAVE_MODEL_PATH = '/home/huynhhao/Desktop/hum'
+
 SECS = 10
 SAMPLE_RATE = 16000
 NUM_SAMPLES = 160000 
@@ -11,6 +13,9 @@ NUM_SAMPLES = 160000
 
 BATCH_SIZE = 256
 EPOCHS = 10
+CHECKPOINT_EPOCHS = 1
+EVAL_EACH_NUM_EPOCHS = 1
+
 LEARNING_RATE = 0.001
 EMBEDDING_DIMS = 128
 # each (song, hum) will has 8 triplet, 16*8 = 128 triplet each batch
@@ -34,4 +39,3 @@ MATCHED_THRESHOLD = 1.1
 
 NUM_SONG_RETRIEVED_PER_QUERY = 10
 # after this number of epoch, eval on val data
-EVAL_EACH_NUM_EPOCHS = 1

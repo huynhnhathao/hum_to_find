@@ -68,7 +68,7 @@ class Evaluator:
         self.annotation_path = annotation_file
         self.audio_dir = audio_dir
         self.distance_method = distance_method
-        self.transformation = self._get_transformation(transformation)
+        
         self.target_sample_rate = target_sample_rate
         self.singing_threshold = singing_threshold
         self.device = device
@@ -76,6 +76,7 @@ class Evaluator:
         self.save_features_path = save_features_path
         self.save_embeddings = save_embeddings
         self.matched_threshold = matched_threshold
+        self.transformation = self._get_transformation(transformation)
         # save all song and hum embeddings to measure distances later
         self.all_song_embeddings = []
         self.all_hum_embeddings = []
@@ -90,7 +91,7 @@ class Evaluator:
                             n_mels = N_MELS)
         if transformer is None:
             raise ValueError('Transformer not specified')
-        return transformer
+        return transformer.to(self.device)
 
     def _resample_if_necessary(self, signal: torch.Tensor, sr: int) -> torch.Tensor:
         """Resample the signal with sample rate = sr into self.target_sample_rate"""
