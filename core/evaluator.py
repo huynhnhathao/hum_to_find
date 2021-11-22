@@ -25,6 +25,7 @@ if logger is None:
     logger.setLevel(logging.INFO)
 
 # TODO: Add multiprocessing
+# NOTE: get song id will be broken if change val_annotation file, need manual ajusted
 
 class Evaluator:
     """
@@ -296,7 +297,7 @@ class Evaluator:
 
     def query_one_hum(self, hum_embeddings: Dict[str, Any],
                         knn: neighbors.KNeighborsClassifier,
-                        database_df: pd.DataFrame ) -> List[Union[str, int]]:
+                        ) -> List[Union[str, int]]:
         """
         Compare the hum_embeddings to the database embeddings and return 10
         most likely song id.
@@ -332,7 +333,7 @@ class Evaluator:
         # extract the indices of song from counter most common
         predictions = [x[0] for x in predictions]
         # extract the song ids from indices
-        song_ids = [database_df.loc[index, 'music_id'] for index in predictions]
+        song_ids = [self.database_df.loc[index, 'music_id'] for index in predictions]
 
         result = result.extend(song_ids)
         return result
@@ -348,26 +349,44 @@ class Evaluator:
             id = song['id']
             for embedding in song['embeddings']:
                 row = {'id': id, 'embedding': embedding}
-                database_df = database_df.append(row, ignore_index=True)
+                self.database_df = self.database_df.append(row, ignore_index=True)
         
         knn = neighbors.KNeighborsClassifier(n_neighbors= 10, weights= 'distance', 
                                     metric= 'euclidean')
 
-        df_data = np.vstack(database_df['embedding'].values)
-        labels = database_df['id'].astype(int).values
+        df_data = np.vstack(self.database_df['embedding'].values)
+        labels = self.database_df['id'].astype(int).values
         knn.fit(df_data, labels)
         # preds is a list of list contains all predictions for every hum audio 
         # in the val set. The inner list: [hum_file_name, pred1, pred2,..,pred10]
     
         predictions = []
         for hummed_embedding in self.all_hummed_embeddings:
-            pred = self.query_one_hum(hummed_embedding, knn, database_df)
+            pred = self.query_one_hum(hummed_embedding, knn, )
             predictions.append(pred)
 
         return predictions
 
-        def compute_
+    def get_song_id(self, hum_file_name: str) -> int:
+        """Get the song id of a hummed audio from the annotation file"""
+        hum_path = 'train/hum/'+hum_file_name
+        song_id = self.annotation.loc[self.annotation['hum_path'] == hum_path, 'music_id'].values[0]
+        return song_id
 
+    def compute_mean_reciprocal_rank(self,
+                        predictions: List[List[Any]]) -> float:
+        all_rr = []
+        for pred in predictions:
+            true_song_id = self.get_song_id(pred[0])
+            if true_song_id in pred:
+                position = pred.index(true_song_id)
+                rank = 1/position
+                all_rr.append(rank)
+            else:
+                all_rr.append(0)
+        return np.mean(all_rr)
+
+        
     def evaluate(self, retrieving_method: str = 'knn',
                 create_df: bool = False ) -> pd.DataFrame:
         """
