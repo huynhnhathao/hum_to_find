@@ -1,13 +1,14 @@
 import logging
 import json
 import os
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
 import torch
 import torchaudio
+from sklearn import neighbors
 
 from constants import *
 from inception_resnet import *
@@ -63,6 +64,7 @@ class Evaluator:
         """
         self.model = model
         self.annotation = pd.read_csv(annotation_file)
+        self.annotation_path = annotation_file
         self.audio_dir = audio_dir
         self.distance_method = distance_method
         self.transformation = self._get_transformation(transformation)
@@ -254,7 +256,6 @@ class Evaluator:
 
         # loop over all original songs, preprocess, forward it through model and
         # save all the embedding vectors to a file.
-        logger.info('Transforming and embedding audios',)
         for i, row in self.annotation.iterrows():
             
             song_embeddings = self._preprocess_and_embed_one_audio(
@@ -291,18 +292,69 @@ class Evaluator:
         #           plus 1 match to this song for the hummed audio
 
         pass
-    def knn_retriever(self, ) -> None:
+
+    def query_one_hum(self, hum_embeddings: Dict[str, Any],
+                        knn: neighbors.KNeighborsClassifier,
+                        database_df: pd.DataFrame ) -> List[Union[str, int]]:
+        """
+        Compare the hum_embeddings to the database embeddings and return 10
+        most likely song id.
+        The return list is like: [0000.mp3, 0, 1, 2, ..., 9]
+        """
+        
+
+
+    def knn_retriever(self, ) -> List[List[Any]]:
         """Use KNN to find the K nearest neighbors to the query embeddings
         """
         # construct a dataframe of song_id and embeddings to train knn classifier
         logger.info('KNN Retriever is working')
-        database_df = pd.DataFrame([], columns = ['id', 'embedding'])
+        self.database_df = pd.DataFrame([], columns = ['id', 'embedding'])
         for song in self.all_song_embeddings:
             id = song['id']
             for embedding in song['embeddings']:
                 row = {'id': id, 'embedding': embedding}
                 database_df = database_df.append(row, ignore_index=True)
         
+        knn = neighbors.KNeighborsClassifier(n_neighbors= 10, weights= 'distance', 
+                                    metric= 'euclidean')
+
+        
+        knn.fit(database_df['embedding'].values)
+        # preds is a list of list contains all predictions for every hum audio 
+        # in the val set. The inner list: [hum_file_name, pred1, pred2,..,pred10]
+    
+        predictions = []
+        for hummed_embedding in self.all_hummed_embeddings:
+            pred = self.query_one_hum(hummed_embedding, knn, database_df)
+            predictions.append(pred)
+
+        return predictions
+
+    def evaluate(self, retrieving_method: str = 'knn',
+                create_df: bool = False ) -> pd.DataFrame:
+        """
+        This method transform, embed and compare embeddings to retrieve song 
+        for each hummed audios.
+
+        Args:
+        retrieving_method: method use to compare embeddings, right now only knn
+            is available.
+        create_df: if True, create and return a dataframe using the predictions data
+        """
+
+        logger.info(f'Start evaluating, using annotation {self.annotation_path}')
+        logger.info('Transforming and embedding audios')
+        self.transform_data()
+        logger.info(f'Building and retrieving data using {retrieving_method}')
+        predictions = self.knn_retriever()
+
+        logger.info('Computing mean reciprocal rank')
+        mrr = self.compute_mean_reciprocal_rank(self, predictions)
+        logger.info(f'Mean reciprocal rank = {mrr}')
+
+        return None
+
 
         
 
