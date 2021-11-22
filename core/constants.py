@@ -4,7 +4,7 @@ TRAIN_AUDIO_DIR = "/home/huynhhao/Desktop/hum/data"
 VAL_AUDIO_DIR = '/home/huynhhao/Desktop/hum/data/'
 SAVE_EMBEDDING_PATH = '/home/huynhhao/Desktop/hum/data/cached_embeddings'
 SAVE_VAL_FEATURES_PATH = "/home/huynhhao/Desktop/hum/data/cached_features/val"
-SAVE_TRAIN_FEATURES_PATH = "/home/huynhhao/Desktop/hum/data/cached_features/train"
+SAVE_TRAIN_FEATURES_PATH = "/home/huynhhao/Desktop/hum/data/cached_features/train/train_spectrogram.pt"
 SAVE_MODEL_PATH = '/home/huynhhao/Desktop/hum'
 LOG_FILE_PATH = '/home/huynhhao/Desktop/hum/hum_to_find/core/log.txt'
 
@@ -14,8 +14,8 @@ SAMPLE_RATE = 16000
 NUM_SAMPLES = 160000 
 
 
-BATCH_SIZE = 512
-EPOCHS = 10
+BATCH_SIZE = 256
+EPOCHS = 100
 CHECKPOINT_EPOCHS = 1
 EVAL_EACH_NUM_EPOCHS = 1
 

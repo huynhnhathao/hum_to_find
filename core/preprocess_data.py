@@ -104,25 +104,34 @@ class HumDataset(Dataset):
 
             hum_signals = self._transformation(hum_signals)
 
-            for _, (original, hum) in enumerate( zip(original_signals, hum_signals)):
+            for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
 
                 this_label = label
 
                 original_sample = (original, this_label)
                 hum_sample = (hum, this_label)
 
-                song_key = str(this_label) + '_song'
-                hum_key = str(this_label)+'_hum'
+                song_key = str(this_label) + f'_{i}_song'
+                hum_key = str(this_label)+ f'_{i}_hum'
 
                 if song_key not in self.samples.keys():
                     self.samples[song_key] = original_sample
-                else:
-                    logger.info(f'Key Conflicting at {song_key}, ignore new sample')
-                if hum_key not in self.samples.keys():
                     self.samples[hum_key] = hum_sample
                 else:
-                    logger.info(f'Key conflicting at {hum_key}, ignore new sample')
+                    new_song_key = str(this_label) + f'_{i}_song'
+                    j = 0
+                    while new_song_key in self.samples.keys(): # while there still a conflict
+                        j+=1
+                        new_song_key =  str(this_label) + f'_{i+j}_song'
 
+                    new_song_key = str(this_label) + f'_{i+j}_song'
+                    new_hum_key = str(this_label) + f'_{i+j}_hum'
+
+                    assert new_song_key not in self.samples.keys(), 'Conflicting key'
+                    assert new_hum_key not in self.samples.keys(), 'Conflicting key'
+
+                    self.samples[new_song_key] = original_sample
+                    self.samples[new_hum_key] = hum_sample
         self.save_features_data()
         logger.info('Data loaded.')
 
@@ -144,13 +153,14 @@ class HumDataset(Dataset):
         # if the last sample is not None, find the positive sample of it
         else:
             sample_keys = sample_key.split('_')
-            if sample_keys[1] == 'song':
+            if sample_keys[-1] == 'song':
 
-                positive_sample_label = sample_keys[0]+'_hum'
+                positive_sample_label = sample_keys[0]+ '_' +sample_keys[1]+ '_hum'
             else:
-                positive_sample_label = sample_keys[0] + '_song'
+                positive_sample_label = sample_keys[0]+ '_' +sample_keys[1]+ '_song'
             # complete one tuple of (anchor, positive), reset the last sample label
             self.last_sample_label = None
+
             if positive_sample_label in self.all_keys:
                 return self.samples[positive_sample_label]
             else:

@@ -154,3 +154,5 @@ if __name__ == '__main__':
 
 # TODO: save evaluating data on memory, do not reload
 
+# TODO: conflicting key too many, must think a new way to solve the problem of
+# two sample belong to the same song can not be negative pair
