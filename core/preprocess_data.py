@@ -62,20 +62,18 @@ class HumDataset(Dataset):
         if not self._load_cached_if_exist():
             self.preprocess_and_load_all_data()
 
-        self.all_keys = list(self.samples.keys())
-
         # plan and save the indices of sample in one epoch
-        self.all_labels = []
+        self.all_labels = list(self.samples.keys())
         self.next_sample = None
-        self._plan_one_epoch()
+        self._plan_one_batch()
 
     def __len__(self) -> int:
         # This method is just a dummy method, the random sampling job of the data
         # is left for this class, I dont know if there is a better way.
-        return len(self.all_keys)*2
+        return len(self.samples)*2
     
-    def _plan_one_epoch(self) -> None:
-        """Create a list of indices traverse all data to be an epoch_indices.
+    def _plan_one_batch(self) -> None:
+        """
         Data return by this class will follow that epoch_indices, where each batch
         of samples must sastisfy some rules.
             1. In one batch, one label has no more than two positive samples.
@@ -84,30 +82,19 @@ class HumDataset(Dataset):
         batch size should divided by two
         last batch may has less than batch_size samples
         """
-        logger.info('Planing one epoch...')
-        # num_batch = (len(self.all_keys)*2) //self.batch_size
-        random_labels =  np.random.shuffle(copy.deepcopy(self.all_keys))
+        # logger.info('Planing one batch...')
+        batch_labels = []
 
-        all_batchs = []
-        while random_labels: # while there are still something in random_labels
-            this_batch = []
-            for _ in range(self.batch_size//2):
-                this_batch_first_labels = [x.split('_')[0] for x in this_batch]
-                random_index = np.random.randint(0, len(random_labels))
-                while random_labels[random_index].split('_')[0] in this_batch_first_labels:
-                    random_index = np.random.randint(0, len(random_labels))
+        while len(batch_labels) < self.batch_size//2:
+            index = np.random.randint(0, len(self.all_labels))
+            all_first_label = [x.split('_')[0] for x in batch_labels]
+            first_label = self.all_labels[index].split('_')[0]
+            if first_label in all_first_label:
+                continue
+            else:
+                batch_labels.append(self.all_labels[index])            
 
-                
-                this_batch.append(random_labels[random_index])
-                # remove the chosen index
-                random_labels.pop(random_index)
-            
-            all_batchs.append(this_batch)
-
-        # each batch will have batch_size/2 labels, since each label has 2 samples.
-
-        self.all_labels = [item for batch in all_batchs for item in batch]
-
+        self.batch_labels = batch_labels
 
     def _load_cached_if_exist(self,)-> bool:
         """Load data in self.save_features_path if exist"""
@@ -171,13 +158,6 @@ class HumDataset(Dataset):
                 self.samples[key] = (original_sample, hum_sample)
 
 
-
-                
-
-
-
-    
-
         self.save_features_data()
         logger.info('Data loaded.')
 
@@ -198,15 +178,15 @@ class HumDataset(Dataset):
             self.next_sample = None
 
         else:
-            if self.all_labels:
-                label = self.all_labels.pop(0)
+            if self.batch_labels:
+                label = self.batch_labels.pop(0)
                 return_sample, self.next_sample = self.samples[label]
             else:
-                self._plan_one_epoch()
-                label = self.all_labels.pop(0)
+                self._plan_one_batch()
+                label = self.batch_labels.pop(0)
                 return_sample, self.next_sample = self.samples[label]
 
-        return return_sample
+        return return_sample[0], int(return_sample[1])
 
 
     def _cut_head_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
