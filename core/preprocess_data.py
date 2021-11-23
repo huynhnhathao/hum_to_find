@@ -1,5 +1,6 @@
 import os
 import logging
+import copy
 from typing import Tuple, List
 
 import torch
@@ -11,15 +12,15 @@ import numpy as np
 
 from constants import *
 
-# TODO: cache transformed data into disk
-# Test everything here, when run we bring it to colab to run on GPU
-
+# TODO: let the random chosing batch sample to this class, not the sampler
+# then,for each batch we force it to not have more than 3 positive samples.
 
 logger = logging.getLogger()
 
 class HumDataset(Dataset):
 
     def __init__(self,
+                 batch_size: int,
                  annotations_file: str,
                  audio_dir: str,
                  transformation,
@@ -31,6 +32,8 @@ class HumDataset(Dataset):
 
         """
         Args:
+            batch_size: because this class handles the sampling process, so it 
+                must know the batch size
             annotations: path to the csv file contains label and path info
             audio_dir: path to the train dir
             transformation: transformation object
@@ -38,8 +41,14 @@ class HumDataset(Dataset):
             num_sample: number of sample for each audio file
             device: cpu or cuda
 
+        Random sampling samples from this dataset is handled by this dataset,
+        not by the torch.utils.data.Sampler object. This class will itself define
+        its way to return batch of samples, such that:
+            1. In one batch, one label has no more than two positive samples.
+            2. one epoch will traverse all the dataset.
+
         """
-        
+        self.batch_size = batch_size
         self.annotations = pd.read_csv(annotations_file)
         self.audio_dir = audio_dir
         self.device = device
@@ -49,20 +58,57 @@ class HumDataset(Dataset):
         self.singing_threshold = singing_threshold
         self.save_features_path = save_features_path
 
-
         self.samples = {}
         if not self._load_cached_if_exist():
             self.preprocess_and_load_all_data()
 
         self.all_keys = list(self.samples.keys())
-        # keep track of the last sample label
-        self.last_sample_label = None
+
+        # plan and save the indices of sample in one epoch
+        self.all_labels = []
+        self.next_sample = None
+        self._plan_one_epoch()
 
     def __len__(self) -> int:
         # This method is just a dummy method, the random sampling job of the data
         # is left for this class, I dont know if there is a better way.
-        return len(self.all_keys)
+        return len(self.all_keys)*2
     
+    def _plan_one_epoch(self) -> None:
+        """Create a list of indices traverse all data to be an epoch_indices.
+        Data return by this class will follow that epoch_indices, where each batch
+        of samples must sastisfy some rules.
+            1. In one batch, one label has no more than two positive samples.
+            2. one epoch will traverse all the dataset.
+
+        batch size should divided by two
+        last batch may has less than batch_size samples
+        """
+        logger.info('Planing one epoch...')
+        # num_batch = (len(self.all_keys)*2) //self.batch_size
+        random_labels =  np.random.shuffle(copy.deepcopy(self.all_keys))
+
+        all_batchs = []
+        while random_labels: # while there are still something in random_labels
+            this_batch = []
+            for _ in range(self.batch_size//2):
+                this_batch_first_labels = [x.split('_')[0] for x in this_batch]
+                random_index = np.random.randint(0, len(random_labels))
+                while random_labels[random_index].split('_')[0] in this_batch_first_labels:
+                    random_index = np.random.randint(0, len(random_labels))
+
+                
+                this_batch.append(random_labels[random_index])
+                # remove the chosen index
+                random_labels.pop(random_index)
+            
+            all_batchs.append(this_batch)
+
+        # each batch will have batch_size/2 labels, since each label has 2 samples.
+
+        self.all_labels = [item for batch in all_batchs for item in batch]
+
+
     def _load_cached_if_exist(self,)-> bool:
         """Load data in self.save_features_path if exist"""
 
@@ -106,32 +152,32 @@ class HumDataset(Dataset):
 
             for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
 
-                this_label = label
+                this_label = str(label)
 
                 original_sample = (original, this_label)
                 hum_sample = (hum, this_label)
 
-                song_key = str(this_label) + f'_{i}_song'
-                hum_key = str(this_label)+ f'_{i}_hum'
+                key = this_label + f'_{i}'
+                if key in self.samples.keys(): # key conflict, create new
+                    j = 9
+                    new_key = this_label + f'_{i+j}'
+                    while new_key in self.samples.keys():
+                        j+= 1
+                        new_key = this_label + f'_{i+j}'
+                        if j > 1000:
+                            logger.info(f'j = {j} too large')
 
-                if song_key not in self.samples.keys():
-                    self.samples[song_key] = original_sample
-                    self.samples[hum_key] = hum_sample
-                else:
-                    new_song_key = str(this_label) + f'_{i}_song'
-                    j = 0
-                    while new_song_key in self.samples.keys(): # while there still a conflict
-                        j+=1
-                        new_song_key =  str(this_label) + f'_{i+j}_song'
+                    key = new_key
+                self.samples[key] = (original_sample, hum_sample)
 
-                    new_song_key = str(this_label) + f'_{i+j}_song'
-                    new_hum_key = str(this_label) + f'_{i+j}_hum'
 
-                    assert new_song_key not in self.samples.keys(), 'Conflicting key'
-                    assert new_hum_key not in self.samples.keys(), 'Conflicting key'
 
-                    self.samples[new_song_key] = original_sample
-                    self.samples[new_hum_key] = hum_sample
+                
+
+
+
+    
+
         self.save_features_data()
         logger.info('Data loaded.')
 
@@ -141,105 +187,26 @@ class HumDataset(Dataset):
         torch.save(self.samples, self.save_features_path)
 
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
-        """Get item must remember which sample is previously get, then the later
-        sample will be the positive sample of the previous.
-        This means that an epoch will not loop through all data, since the later
-        sample depend on the previous sample.
         """
-        sample_key = self.all_keys[index]
-        if self.last_sample_label is None:
-            self.last_sample_label = sample_key
-            return self.samples[sample_key]
-        # if the last sample is not None, find the positive sample of it
+        Return the next_sample if next_sample is not None, 
+        else it pop one label in self.all_labels, return the first sample of that 
+        label, save the remaining sample to self.last_sample
+        """
+        return_sample = None
+        if self.next_sample is not None:
+            return_sample = self.next_sample
+            self.next_sample = None
+
         else:
-            sample_keys = sample_key.split('_')
-            if sample_keys[-1] == 'song':
-
-                positive_sample_label = sample_keys[0]+ '_' +sample_keys[1]+ '_hum'
+            if self.all_labels:
+                label = self.all_labels.pop(0)
+                return_sample, self.next_sample = self.samples[label]
             else:
-                positive_sample_label = sample_keys[0]+ '_' +sample_keys[1]+ '_song'
-            # complete one tuple of (anchor, positive), reset the last sample label
-            self.last_sample_label = None
+                self._plan_one_epoch()
+                label = self.all_labels.pop(0)
+                return_sample, self.next_sample = self.samples[label]
 
-            if positive_sample_label in self.all_keys:
-                return self.samples[positive_sample_label]
-            else:
-                logger.info(f'{positive_sample_label} is not found!')
-                self.last_sample_label = self.all_keys[index]
-                return self.samples[self.all_keys[index]]
-
-
-    # def __getitem__(self, index: int
-    #             ) -> Tuple[Tuple[torch.Tensor, torch.tensor], torch.Tensor]:
-
-    #     """
-    #     Each item indexing one song id, each song id has two audio: the
-    #     original song and the hummed song. Each audio will go through:
-    #         1. Pre-cut the left audio until it starts to sing
-    #         2. Pad/cut each audio to has 10 second.
-    #         3. Split the audio into 2-sec chunks, overlapping 1 sec.
-
-    #     Finally, one song id/item will give 9 tuple of (original, hummed) sample.
-
-    #     Returns:
-    #         9 of this ((original, hummed), song_id)
-
-    #     """
-    #     if self.samples:
-    #         return self.samples.pop()
-    #     else:
-    #         if self.random_indices:
-    #             index = self.random_indices.pop()
-    #             original_path, hum_path = self._get_audio_sample_path(index)
-    #         else:
-    #             self.random_indices = list(np.random.randint(0, len(self.annotations), len(self.annotations)))
-    #             index = self.random_indices.pop()
-    #             original_path, hum_path = self._get_audio_sample_path(index)
-
-    #         label = self._get_audio_sample_label(index)
-
-    #         original_signal, original_sr = torchaudio.load(original_path)
-    #         original_signal = original_signal.to(self.device)
-    #         original_signal = self._resample_if_necessary(original_signal, original_sr)
-    #         original_signal = self._mix_down_if_necessary(original_signal)
-    #         original_signal = self._cut_head_if_necessary(original_signal)
-    #         original_signal = self._cut_tail_if_necessary(original_signal)
-    #         original_signal = self._right_pad_if_necessary(original_signal)
-    #         original_signals = self._split_signal(original_signal, 16000, NUM_CHUNKS_EACH_AUDIO)
-        
-    #         original_signals = self._transformation(original_signals)
-            
-
-    #         hum_signal, hum_sr = torchaudio.load(hum_path)
-    #         hum_signal = hum_signal.to(self.device)
-    #         hum_signal = self._resample_if_necessary(hum_signal, hum_sr)
-    #         hum_signal = self._mix_down_if_necessary(hum_signal)
-    #         hum_signal = self._cut_head_if_necessary(hum_signal)
-    #         hum_signal = self._cut_tail_if_necessary(hum_signal)
-    #         hum_signal = self._right_pad_if_necessary(hum_signal)
-    #         hum_signals = self._split_signal(hum_signal, 16000, NUM_CHUNKS_EACH_AUDIO)
-
-    #         hum_signals = self._transformation(hum_signals)
-
-    #         for i, (original, hum) in enumerate( zip(original_signals, hum_signals)):
-    #             # We don't want 2 sample of the same song to become (anchor, negative)
-    #             # so we will do a trick into the label of sameples belong to the 
-    #             # same song: every sameples belong the the same sone will has id
-    #             # in range label + 9. with this trick, we can imply
-    #             # which samples are actually belong to the same song.
-    #             # because the id range are very large, so this should not be a problem
-    #             # however, this is still a dirty workaround, until I know a better 
-    #             # way. There will have cases where valid negative become invalid 
-    #             # because of this trick, but it should not be a problem because
-    #             # given the batch size and the random selection of sample.
-    #             this_label = label + i 
-
-    #             original_sample = (original, this_label)
-    #             hum_sample = (hum, this_label)
-
-    #             self.samples.append(original_sample)
-    #             self.samples.append(hum_sample)
-    #     return self.samples.pop()
+        return return_sample
 
 
     def _cut_head_if_necessary(self, signal: torch.Tensor) -> torch.Tensor:
@@ -338,16 +305,10 @@ if __name__ == "__main__":
         n_mels=N_MELS
     )
 
-    usd = HumDataset(ANNOTATIONS_FILE,
-                            AUDIO_DIR,
-                            mel_spectrogram,
-                            SAMPLE_RATE,
-                            NUM_SAMPLES,
-                            SINGING_THRESHOLD,
-                            DEVICE)
-    sampler = torch.utils.data.RandomSampler(usd)
-    dataloader = torch.utils.data.DataLoader(usd, batch_size = 16, sampler = sampler)
-    batch = next(iter(dataloader))
-    print(len(batch))
-    print(batch[0].shape)
-    print(batch[1])
+    hds = HumDataset(TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
+                    NUM_SAMPLES, SINGING_THRESHOLD, DEVICE, SAVE_TRAIN_FEATURES_PATH)
+    # sampler = torch.utils.data.RandomSampler(usd)
+    dataloader = torch.utils.data.DataLoader(hds, batch_size = 16,)
+    for inputs, labels in dataloader:
+        print(inputs)
+        print(labels)

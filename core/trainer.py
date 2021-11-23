@@ -129,15 +129,16 @@ if __name__ == '__main__':
         sample_rate=SAMPLE_RATE,
         n_fft=TRANSFORMER_NFFT,
         hop_length=TRANSFORMER_HOP_LENGTH,
-        n_mels=N_MELS
+        n_mels=N_MELS,
+        normalized = True
     )
 
-    hds = HumDataset(TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
+    hds = HumDataset(BATCH_SIZE, TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
                     NUM_SAMPLES, SINGING_THRESHOLD, DEVICE, SAVE_TRAIN_FEATURES_PATH)
 
 
-    random_sampler = torch.utils.data.RandomSampler(hds, )
-    train_dataloader = DataLoader(hds, BATCH_SIZE, sampler = random_sampler)
+    # random_sampler = torch.utils.data.RandomSampler(hds, )
+    train_dataloader = DataLoader(hds, BATCH_SIZE, shuffle = False)
 
     inception_resnet = InceptionResnetV1(embedding_dims = EMBEDDING_DIMS ).to(DEVICE)
 
