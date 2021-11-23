@@ -232,7 +232,7 @@ class Evaluator:
             self.model.eval()
             embeddings = self.model(signals)            
 
-        return embeddings.detach().numpy()
+        return embeddings.detach().cpu().numpy()
 
     def save_embeddings_data(self, embeddings: List[np.ndarray], save_path: str,
                 replace_if_exist: bool = True) -> None:
