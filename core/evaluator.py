@@ -96,7 +96,7 @@ class Evaluator:
     def _resample_if_necessary(self, signal: torch.Tensor, sr: int) -> torch.Tensor:
         """Resample the signal with sample rate = sr into self.target_sample_rate"""
         if sr != self.target_sample_rate:
-            resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate)
+            resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate).to(self.device)
             signal = resampler(signal)
         return signal
 
