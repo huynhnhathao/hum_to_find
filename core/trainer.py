@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 from evaluator import Evaluator 
 
-from preprocess_data import HumDataset
+from preprocess_data import HumDatasetNoSplit
 from inception_resnet import *
 from triplet_mining_online import batch_hard_triplet_loss, batch_all_triplet_loss
 from constants import *
@@ -28,10 +28,10 @@ logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
 
-
+# TODO: evaluate on train datas
 class Trainer:
     
-    def __init__(self, model, dataloader,
+    def __init__(self, model, evaluator,  dataloader,
                 loss_fn, optimizer, eval_each_num_epochs: int,
                 checkpoint_epochs: int, epochs:int, device: str,
                 save_model_path: str) -> None:
@@ -40,6 +40,7 @@ class Trainer:
         
         Args:
             model: pytorch model to train
+            evaluator: evaluator object
             dataloader:
             loss_fn:
             optimizer:
@@ -53,6 +54,7 @@ class Trainer:
 
 
         self.model = model
+        self.evaluator = evaluator
         self.dataloader = dataloader
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -64,6 +66,8 @@ class Trainer:
         
         # save training time for each epoch to estimate remaining time
         self.epoch_time = []
+
+
 
     def train_single_epoch(self,) -> None:
         self.model.train()
@@ -82,14 +86,10 @@ class Trainer:
 
         logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
 
-    def evaluate(self) -> None:
+    def evaluate(self, mode: str = 'val') -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
 
-        evaluator = Evaluator(self.model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR,
-                        'euclidean', 'mel_spectrogram', SAMPLE_RATE,
-                        SINGING_THRESHOLD, self.device, SAVE_EMBEDDING_PATH, 
-                        SAVE_VAL_FEATURES_PATH )
-        evaluator.evaluate()
+        evaluator.evaluate(self.model, mode)
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
         """save the current model into self.save_model_path"""
@@ -133,10 +133,13 @@ if __name__ == '__main__':
         normalized = True
     )
 
-    hds = HumDataset(BATCH_SIZE, TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
+    hds = HumDatasetNoSplit(TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
                     NUM_SAMPLES, SINGING_THRESHOLD, DEVICE, SAVE_TRAIN_FEATURES_PATH)
 
-
+    evaluator = Evaluator(VAL_ANNOTATION_FILE, VAL_AUDIO_DIR,
+                    'euclidean', 'mel_spectrogram', SAMPLE_RATE,
+                    SINGING_THRESHOLD, DEVICE, SAVE_EMBEDDING_PATH, 
+                    SAVE_VAL_FEATURES_PATH, False, 1.1 )
     # random_sampler = torch.utils.data.RandomSampler(hds, )
     train_dataloader = DataLoader(hds, BATCH_SIZE, shuffle = False)
 
@@ -145,15 +148,9 @@ if __name__ == '__main__':
     loss_fn = batch_hard_triplet_loss
     optimizer = torch.optim.Adam(inception_resnet.parameters(), 
                                 lr = LEARNING_RATE)
-    trainer = Trainer(inception_resnet, train_dataloader, loss_fn, optimizer,
+    trainer = Trainer(inception_resnet, evaluator, train_dataloader, loss_fn, optimizer,
                     EVAL_EACH_NUM_EPOCHS, CHECKPOINT_EPOCHS, EPOCHS, DEVICE,
                     SAVE_MODEL_PATH)
                     
 
     trainer.train()
-
-
-# TODO: save evaluating data on memory, do not reload
-
-# TODO: conflicting key too many, must think a new way to solve the problem of
-# two sample belong to the same song can not be negative pair

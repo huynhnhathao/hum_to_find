@@ -23,25 +23,29 @@ logger = logging.getLogger()
 #     logger.addHandler(handler)
 #     logger.setLevel(logging.INFO)
 
-# TODO: Add multiprocessing
+# TODO: Preprocess and save all data features into one file.
 # NOTE: get song id will be broken if change val_annotation file, need manual ajusted
+
+
+
 
 class Evaluator:
     """
     Evaluator class evaluate the given model on the given dataset, using `l2` distance
     or `adaptive`
     """
-    def __init__(self, model,
+    def __init__(self,
                 annotation_file: str,
                 audio_dir: str,
+                num_samples: int, 
                 distance_method: str,
                 transformation: str,
                 target_sample_rate: int, 
                 singing_threshold: float,
                 device: str,
                 save_embeddings_path: str,
-                save_features_path: str,
-                save_embeddings: bool = True,
+                save_val_features_path: str,
+                save_embeddings: bool = False,
                 matched_threshold: float = 1.1
                 ) -> None:
         """
@@ -63,23 +67,24 @@ class Evaluator:
             match_threshold: the threshold to consider two sample are match, when
                 compare in Euclidean distance
         """
-        self.model = model
         self.annotation = pd.read_csv(annotation_file)
         self.annotation_path = annotation_file
         self.audio_dir = audio_dir
+        self.num_samples = num_samples
         self.distance_method = distance_method
         
         self.target_sample_rate = target_sample_rate
         self.singing_threshold = singing_threshold
         self.device = device
         self.save_embeddings_path = save_embeddings_path
-        self.save_features_path = save_features_path
+        self.save_val_features_path = save_val_features_path
         self.save_embeddings = save_embeddings
         self.matched_threshold = matched_threshold
         self.transformation = self._get_transformation(transformation)
         # save all song and hum embeddings to measure distances later
-        self.all_song_embeddings = []
-        self.all_hum_embeddings = []
+
+        self.val_samples = {}
+        self.val_embeddings = {}
 
     def _get_transformation(self, transformation: str) -> Any:
         transformer = None
@@ -88,7 +93,7 @@ class Evaluator:
                             sample_rate = SAMPLE_RATE,
                             n_fft = TRANSFORMER_NFFT,
                             hop_length = TRANSFORMER_HOP_LENGTH,
-                            n_mels = N_MELS)
+                            n_mels = N_MELS, normalized=True)
         if transformer is None:
             raise ValueError('Transformer not specified')
         return transformer.to(self.device)
@@ -131,41 +136,6 @@ class Evaluator:
             signal = torch.nn.functional.pad(signal, last_dim_padding)
         return signal
 
-    def _split_signal(self, signal: torch.Tensor,                               
-                    chunk_len: int, overlapping: int,
-                   ) -> List[torch.Tensor]:
-
-
-        """plit the signal into num_chunks equal chunks, 
-        each chunk overlapping of overlapping samples
-        Args:
-            signal: the tensor signal to be splited
-            chunk_len: number of samples for each chunk
-            overlapping: the number of samples overlapping between chunks
-
-        # NOTE: right now overlapping must be a half of chunk_len,
-        #  or this method will be broken
-        """
-
-        # number of samples in signal must % overlapping == 0
-        num_chunks = (signal.shape[-1]//overlapping) - 1
-        all_chunks = []
-        for i in range(num_chunks):
-            all_chunks.append(signal[:, i*overlapping:(i+2)*overlapping])
-        # instead of drop the final signals that does not fit in our chunk size, 
-        # we will take the last chunk_size samples as our final chunk
-        all_chunks.append(signal[:, -chunk_len: ])
-        return all_chunks
-
-    def _transformation(self, signals: List[torch.Tensor]) -> List[torch.Tensor]:
-        """transform each signal in signals into mel-spectrogram"""
-        transformed_signals = []
-        for signal in signals:
-            # add batch dimension
-            transformed_signals.append(self.transformation(signal).unsqueeze(0))
-
-        return transformed_signals
-
     def _save_signals_features(self, signals: torch.Tensor, audio_path: str) -> None:
         """Save the tensor of signals into disk
         Args:
@@ -178,61 +148,22 @@ class Evaluator:
         filename = '_'.join(audio_path.split('/')[-2:])
         filename = filename.split('.')[0] + '.pt'
 
-        with open(os.path.join(self.save_features_path, filename), 'wb') as f:
-            torch.save(signals.to('cpu'), f)
-
-    def _retrieve_signals_if_exist(self, audio_path: str )-> torch.Tensor:
-        """Load the signals features from the disk
-        Args:
-            audio_path: path to the audio that want to retrieve the saved features
-                note that this is not the path to the audi features
-        """
-        filename = '_'.join(audio_path.split('/')[-2:])
-        filename = filename.split('.')[0] + '.pt'
-        filepath = os.path.join(self.save_features_path, filename)
-        features = None
-        if os.path.isfile(filepath):
-            features = torch.load(open(filepath, 'rb'))
-            return features
-
-        return features
+        torch.save(signals.to('cpu'), os.path.join(self.save_features_path, filename))
         
-    def _preprocess_and_embed_one_audio(self,
-                                        audio_path: str) -> np.ndarray:
-        """Preprocess one audio, split it into chunks, transform it and forward
-        it through the model
-        Args:
-            audio_path: relative path to the audio
+    def _preprocess_one_audio(self, audio_path) -> torch.Tensor:
+                                        
 
-        Returns: Embedding vectors for each chunk
-        """
-        # looking for cached features before actually compute it
-        
-        signals = self._retrieve_signals_if_exist(audio_path)
+        signal, sr = torchaudio.load(audio_path)
+        signal = signal.to(self.device)
+        signal = self._resample_if_necessary(signal, sr)
+        signal = self._mix_down_if_necessary(signal)
+        # signal = self._cut_head_if_necessary(signal) No cut head when evaluating
+        signal = self._cut_tail_if_necessary(signal) 
+        signal = self._right_pad_if_necessary(signal) 
 
-        if signals is None:
-            signal, sr = torchaudio.load(audio_path)
-            signal = signal.to(self.device)
-            signal = self._resample_if_necessary(signal, sr)
-            signal = self._mix_down_if_necessary(signal)
-            # signal = self._cut_head_if_necessary(signal) No cut head when evaluating
-            # signal = self._cut_tail_if_necessary(signal) No cut tail when elvaluating
-            # signal = self._right_pad_if_necessary(signal) No right pad when evaluating
-            signals = self._split_signal(signal, CHUNK_LEN, CHUNK_OVERLAPPING)
+        signal = self.transformation(signal).unsqueeze(0)    
 
-            signals = self._transformation(signals)
-
-            # conver signals into batch of tensor
-            signals = torch.cat(signals, 0)
-            self._save_signals_features(signals, audio_path)
-        else:
-            signals = signals.to(self.device)
-
-        with torch.no_grad():
-            self.model.eval()
-            embeddings = self.model(signals)            
-
-        return embeddings.detach().cpu().numpy()
+        return signal
 
     def save_embeddings_data(self, embeddings: List[np.ndarray], save_path: str,
                 replace_if_exist: bool = True) -> None:
@@ -251,52 +182,42 @@ class Evaluator:
                 json.dump(line, f)
                 f.write('\n')            
 
-    def transform_data(self, ) -> None:
-        """Embed all the original songs and hummed audios, then save to the 
-        cached_dir, rewrite new file if already exist
+    def transform_val_data(self, ) -> None:
+        """ Transform all val data and save to disk, or reload from disk if exist
         """
 
-        # loop over all original songs, preprocess, forward it through model and
-        # save all the embedding vectors to a file.
-        for _, row in self.annotation.iterrows():
-            
-            song_embeddings = self._preprocess_and_embed_one_audio(
-                            os.path.join(self.audio_dir, row['song_path']))
+        if os.path.isfile(self.save_val_features_path):
+            logger.info(f'Loading all val samples from {self.save_val_features_path}')
+            self.all_val_features = torch.load(self.save_val_features_path)
+        else:
+            for _, row in self.annotation.iterrows():
+                
+                song_features = self._preprocess_one_audio(
+                                os.path.join(self.audio_dir, row['song_path']))
 
-            hum_embeddings = self._preprocess_and_embed_one_audio(
-                            os.path.join(self.audio_dir, row['hum_path']))
+                hum_features = self._preprocess_one_audio(
+                                os.path.join(self.audio_dir, row['hum_path']))
 
-            song_data = {'id': row['music_id'], 'path': row['song_path'], 
-                        'embeddings': song_embeddings.tolist()}
-            
-            hum_data = {'id': row['music_id'], 'path': row['hum_path'], 
-                        'embeddings': hum_embeddings.tolist()}
+                key = row['music_id']
 
-            self.all_song_embeddings.append(song_data)
-            self.all_hum_embeddings.append(hum_data)
-        logger.info("Done embedding audios.")
+                self.val_samples[key] = ((song_features, row['song_path']), (hum_features, row['hum_path']))
 
-        if self.save_embeddings:
-            logger.info('Saving audio embeddings to files')
-            # check if the dir exist, if not, create it
-            if not os.path.isdir(self.save_embeddings_path):
-                os.mkdir(self.save_embeddings_path)
+            logger.info(f'Saving self.val_samples into {self.save_val_features_path}')
 
-            song_embeddings_path = os.path.join(self.save_embeddings_path, 'val_original_song_embeddings.jl')
-            hum_embeddings_path = os.path.join(self.save_embeddings_path, 'val_hummed_audio_embeddings.jl')
+            torch.save(self.val_samples, self.save_val_features_path)
 
-            self.save_embeddings_data(self.all_song_embeddings, song_embeddings_path)
-            self.save_embeddings_data(self.all_hum_embeddings, hum_embeddings_path)
-
-    def l2_compare(self, ) -> None:
-        # loop over all hummed audio:
-        #   loop over all embeddings of the hummed audio:
-        #       loop over all song in the database:
-        #           loop over all embeddings of that song:
-        #           if the hummed embedding match the song embeddings,
-        #           plus 1 match to this song for the hummed audio
-
-        pass
+    def _compute_embeddings(self, model) -> None:
+        """Compute all embeddings for self.val_samples"""
+        
+        self.val_embeddings = {}
+        model.eval()
+        with torch.no_grad():
+            for label, item in self.val_samples.items():
+                song_features = item[0][0]
+                hum_features = item[1][0]
+                song_embedding = model(song_features).detach().cpu().numpy()
+                hum_embedding = model(hum_features).detach().cpu().numpy()
+                self.val_embeddings[label] = ((song_embedding, item[0][1]), (hum_embedding, item[1][1]))
 
     def query_one_hum(self, hum_embeddings: Dict[str, Any],
                         knn: neighbors.KNeighborsClassifier,
@@ -319,24 +240,15 @@ class Evaluator:
             that they are the indices, not the song ids
         
         """
-        hum_filename = hum_embeddings['path'].split('/')[-1]
+        hum_filename = hum_embeddings[1].split('/')[-1]
         result = [hum_filename, ]
-        # neighbor pool
-        all_neighbors = []
-        all_distances = []
-        embeddings = hum_embeddings['embeddings']
-        for embedding in embeddings:
-            embedding = np.array(embedding).reshape(-1, EMBEDDING_DIMS)
-            distances, neighbors = knn.kneighbors(embedding, NUM_SONG_RETRIEVED_PER_QUERY)
-            all_neighbors.extend(neighbors[0].tolist())
-            all_distances.extend(distances[0].tolist())
+        embedding = hum_embeddings[0]
 
-        counter = collections.Counter(all_neighbors)
-        predictions = counter.most_common(NUM_SONG_RETRIEVED_PER_QUERY)
-        # extract the indices of song from counter most common
-        predictions = [x[0] for x in predictions]
-        # extract the song ids from indices
-        song_ids = [self.database_df.loc[index, 'id'] for index in predictions]
+        embedding = np.array(embedding).reshape(-1, EMBEDDING_DIMS)
+        distances, neighbors = knn.kneighbors(embedding, NUM_SONG_RETRIEVED_PER_QUERY)
+
+
+        song_ids = [self.database_df.loc[index, 'id'] for index in neighbors]
 
         result.extend(song_ids)
         return result
@@ -346,13 +258,12 @@ class Evaluator:
         """Use KNN to find the K nearest neighbors to the query embeddings
         """
         # construct a dataframe of song_id and embeddings to train knn classifier
-        logger.info('KNN Retriever is working')
+        
         self.database_df = pd.DataFrame([], columns = ['id', 'embedding'])
-        for song in self.all_song_embeddings:
-            id = song['id']
-            for embedding in song['embeddings']:
-                row = {'id': id, 'embedding': embedding}
-                self.database_df = self.database_df.append(row, ignore_index=True)
+        for key, item in self.val_embeddings.items():
+
+            row = {'id': key, 'embedding': item[0][0]}
+            self.database_df = self.database_df.append(row, ignore_index=True)
         
         knn = neighbors.KNeighborsClassifier(n_neighbors= 10, weights= 'distance', 
                                     metric= 'euclidean')
@@ -360,14 +271,15 @@ class Evaluator:
         df_data = np.vstack(self.database_df['embedding'].values)
         labels = self.database_df['id'].astype(int).values
         knn.fit(df_data, labels)
+
+
         # preds is a list of list contains all predictions for every hum audio 
         # in the val set. The inner list: [hum_file_name, pred1, pred2,..,pred10]
     
         predictions = []
-        for hummed_embedding in self.all_hum_embeddings:
-            pred = self.query_one_hum(hummed_embedding, knn, )
+        for key, item in self.val_embeddings:
+            pred = self.query_one_hum(item[1], knn )
             predictions.append(pred)
-
         return predictions
 
     def get_song_id(self, hum_file_name: str) -> int:
@@ -389,7 +301,6 @@ class Evaluator:
                 all_rr.append(0)
         return np.mean(all_rr)
 
-
     def evaluate(self, retrieving_method: str = 'knn',
                 create_df: bool = False ) -> pd.DataFrame:
         """
@@ -402,11 +313,14 @@ class Evaluator:
         create_df: if True, create and return a dataframe using the predictions data
         """
 
-        logger.info(f'Start evaluating, using annotation {self.annotation_path}')
-        logger.info('Transforming and embedding audios')
-        self.transform_data()
+        if not self.val_samples:
+            self.transform_val_data()
+
+        logger.info('Computing embedding for val data')
+        self._compute_embeddings()
 
         logger.info(f'Building and retrieving songs using {retrieving_method}')
+
         predictions = self.knn_retriever()
 
         logger.info('Computing mean reciprocal rank')
@@ -420,9 +334,9 @@ class Evaluator:
 if __name__ == '__main__':
 
     model = InceptionResnetV1(embedding_dims= EMBEDDING_DIMS, )
-    evaluator = Evaluator(model, VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, 
+    evaluator = Evaluator(VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, NUM_SAMPLES,
                         'euclidean', 'mel_spectrogram', SAMPLE_RATE,
                         SINGING_THRESHOLD, DEVICE, SAVE_EMBEDDING_PATH,
-                        SAVE_VAL_FEATURES_PATH, True, MATCHED_THRESHOLD)
+                        SAVE_VAL_FEATURES_PATH, False, MATCHED_THRESHOLD)
 
     evaluator.evaluate()
