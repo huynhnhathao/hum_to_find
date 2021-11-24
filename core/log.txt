@@ -1,0 +1,6 @@
+2021-11-24 13:46:56,225 - Using cpu
+2021-11-24 13:46:56,234 - Loading train features data from /home/huynhhao/Desktop/hum/data/cached_features/train/train_spectrogram_nosplit.pt
+2021-11-24 13:46:56,609 - Epoch 1
+2021-11-24 13:48:42,442 - Using cpu
+2021-11-24 13:48:42,452 - Loading train features data from /home/huynhhao/Desktop/hum/data/cached_features/train/train_spectrogram_nosplit.pt
+2021-11-24 13:48:42,828 - Epoch 1

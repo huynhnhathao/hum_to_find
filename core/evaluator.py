@@ -188,7 +188,7 @@ class Evaluator:
 
         if os.path.isfile(self.save_val_features_path):
             logger.info(f'Loading all val samples from {self.save_val_features_path}')
-            self.all_val_features = torch.load(self.save_val_features_path)
+            self.val_samples = torch.load(self.save_val_features_path)
         else:
             for _, row in self.annotation.iterrows():
                 
@@ -248,7 +248,7 @@ class Evaluator:
         distances, neighbors = knn.kneighbors(embedding, NUM_SONG_RETRIEVED_PER_QUERY)
 
 
-        song_ids = [self.database_df.loc[index, 'id'] for index in neighbors]
+        song_ids = [self.database_df.loc[index, 'id'] for index in neighbors[0]]
 
         result.extend(song_ids)
         return result
@@ -277,7 +277,7 @@ class Evaluator:
         # in the val set. The inner list: [hum_file_name, pred1, pred2,..,pred10]
     
         predictions = []
-        for key, item in self.val_embeddings:
+        for key, item in self.val_embeddings.items():
             pred = self.query_one_hum(item[1], knn )
             predictions.append(pred)
         return predictions
@@ -301,7 +301,7 @@ class Evaluator:
                 all_rr.append(0)
         return np.mean(all_rr)
 
-    def evaluate(self, retrieving_method: str = 'knn',
+    def evaluate(self, model, retrieving_method: str = 'knn',
                 create_df: bool = False ) -> pd.DataFrame:
         """
         This method transform, embed and compare embeddings to retrieve song 
@@ -317,7 +317,7 @@ class Evaluator:
             self.transform_val_data()
 
         logger.info('Computing embedding for val data')
-        self._compute_embeddings()
+        self._compute_embeddings(model)
 
         logger.info(f'Building and retrieving songs using {retrieving_method}')
 
@@ -327,7 +327,7 @@ class Evaluator:
         mrr = self.compute_mean_reciprocal_rank( predictions)
         logger.info(f'Mean reciprocal rank = {mrr}')
 
-        return None
+        return mrr
 
 
         
@@ -339,4 +339,4 @@ if __name__ == '__main__':
                         SINGING_THRESHOLD, DEVICE, SAVE_EMBEDDING_PATH,
                         SAVE_VAL_FEATURES_PATH, False, MATCHED_THRESHOLD)
 
-    evaluator.evaluate()
+    print(evaluator.evaluate(model))

@@ -89,7 +89,7 @@ class Trainer:
     def evaluate(self, mode: str = 'val') -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
 
-        evaluator.evaluate(self.model, mode)
+        evaluator.evaluate(self.model)
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
         """save the current model into self.save_model_path"""
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     hds = HumDatasetNoSplit(TRAIN_ANNOTATIONS_FILE, TRAIN_AUDIO_DIR, mel_spectrogram, SAMPLE_RATE,
                     NUM_SAMPLES, SINGING_THRESHOLD, DEVICE, SAVE_TRAIN_FEATURES_PATH)
 
-    evaluator = Evaluator(VAL_ANNOTATION_FILE, VAL_AUDIO_DIR,
+    evaluator = Evaluator(VAL_ANNOTATION_FILE, VAL_AUDIO_DIR, NUM_SAMPLES,
                     'euclidean', 'mel_spectrogram', SAMPLE_RATE,
                     SINGING_THRESHOLD, DEVICE, SAVE_EMBEDDING_PATH, 
                     SAVE_VAL_FEATURES_PATH, False, 1.1 )

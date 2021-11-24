@@ -115,7 +115,6 @@ class HumDatasetNoSplit(Dataset):
                 self.samples[new_label] = ((original_signal, label), (hum_signal, label))
 
 
-            self.save_features_data()
         self.save_features_data()
         logger.info('Data loaded.')
 
