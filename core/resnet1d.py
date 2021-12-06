@@ -6,7 +6,6 @@ Shenda Hong, Oct 2019
 
 import numpy as np
 from collections import Counter
-from tqdm import tqdm
 from matplotlib import pyplot as plt
 from sklearn.metrics import classification_report 
 
@@ -15,8 +14,12 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+from torchsummary import summary
 
-class MyDataset(Dataset):
+import arguments as args
+
+
+class CrepeDataset(Dataset):
     def __init__(self, data, label):
         self.data = data
         self.label = label
@@ -192,7 +195,9 @@ class ResNet1D(nn.Module):
         
     """
 
-    def __init__(self, in_channels, base_filters, kernel_size, stride, groups, n_block, n_classes, downsample_gap=2, increasefilter_gap=4, use_bn=True, use_do=True, verbose=False):
+    def __init__(self, in_channels, base_filters, kernel_size, stride, groups,
+                n_block, n_classes, downsample_gap=2, increasefilter_gap=4,
+                use_bn=True, use_do=True, verbose=False):
         super(ResNet1D, self).__init__()
         
         self.verbose = verbose
@@ -295,3 +300,10 @@ class ResNet1D(nn.Module):
             print('softmax', out.shape)
         
         return out    
+
+
+if __name__ == '__main__':
+    mynet = ResNet1D(1, args.base_filters, args.kernel_size, args.stride,
+                args.groups, args.n_blocks, args.embedding_dim, )
+    sample = torch.randn((1, 10000, 1))
+    summary(mynet, (1, 10000))
