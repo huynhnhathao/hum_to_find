@@ -13,6 +13,7 @@ import numpy as np
 
 from triplet_mining_online import batch_hard_triplet_loss, batch_all_triplet_loss
 import arguments as args
+import faiss_comparer
 
 stream_handler = logging.StreamHandler()
 # file_handler = logging.FileHandler(args.log_file_path)
@@ -60,8 +61,13 @@ class Trainer:
         # save training time for each epoch to estimate remaining time
         self.epoch_time = []
 
-    def train_single_epoch(self,) -> None:
+    def train_single_epoch(self, ) -> None:
         self.model.train()
+        # collect embeddings to do evaluation on train
+        song_embeddings = []
+        hum_embeddings = []
+        embedding_labels = []
+
         epoch_loss = []
         positive_rates = []
         for song_tensor, hum_tensor, music_ids in self.dataloader:
@@ -78,8 +84,14 @@ class Trainer:
             epoch_loss.append(loss.detach().item())
             positive_rates.append(positive_rate)
 
+            song_embeddings.append(embeddings[:args.batch_size, :, :].detach().cpu().numpy())
+            hum_embeddings.append(embeddings[args.batch_size:, :, :].detach().cpu().numpy())
+            embedding_labels.append(music_ids.detach().cpu().numpy())
+
         logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
         logger.info(f'positive rate: {sum(positive_rates)/len(positive_rates)}')
+        mrr = faiss_comparer.FaissEvaluator(song_embeddings, hum_embeddings, embedding_labels).evaluate()
+        logger.info(f'train mrr: {mrr}')
 
     def evaluate_on_train(self, ) -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
