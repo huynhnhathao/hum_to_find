@@ -25,7 +25,7 @@ train_data_path = '/content/hum_to_find/crepe_freq/train_data.pkl'
 val_data_path = '/content/hum_to_find/crepe_freq/val_data.pkl'
 save_model_path = '/content/hum_to_find'
 
-pretrained_model_path = None
+pretrained_model_path = '/content/drive/MyDrive/hum_project/model_epoch2500.pt'
 
 # Trainer 
 epochs = 10000
