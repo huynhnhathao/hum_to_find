@@ -84,13 +84,14 @@ class Trainer:
             epoch_loss.append(loss.detach().item())
             positive_rates.append(positive_rate)
 
-            song_embeddings.append(embeddings[:args.batch_size, :, :].detach().cpu().numpy())
-            hum_embeddings.append(embeddings[args.batch_size:, :, :].detach().cpu().numpy())
+            song_embeddings.append(embeddings[:args.batch_size, :].detach().cpu().numpy())
+            hum_embeddings.append(embeddings[args.batch_size:, :].detach().cpu().numpy())
             embedding_labels.append(music_ids.detach().cpu().numpy())
 
         logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
         logger.info(f'positive rate: {sum(positive_rates)/len(positive_rates)}')
-        mrr = faiss_comparer.FaissEvaluator(song_embeddings, hum_embeddings, embedding_labels).evaluate()
+        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
+                        hum_embeddings, embedding_labels).evaluate()
         logger.info(f'train mrr: {mrr}')
 
     def evaluate_on_train(self, ) -> None:
@@ -119,10 +120,11 @@ class Trainer:
             self.epoch_time.append(time_spent)
             logger.info(f"Estimated time per epoch: {np.mean(self.epoch_time)}-minutes")
             logger.info(f"Estimated remaining time: {(self.epochs - i - 1)*np.mean(self.epoch_time)}-minutes")
-            if (i + 1) % self.eval_each_num_epochs == 0:
-                self.evaluate() 
-            if (i+1) % self.checkpoint_epochs == 0:
-                self.save_model(i+1)
+
+            # if (i + 1) % self.eval_each_num_epochs == 0:
+            #     self.evaluate_on_train() 
+            # if (i+1) % self.checkpoint_epochs == 0:
+            #     self.save_model(i+1)
         
         self.save_model('last_epoch')
         logger.info('Finish training.')
