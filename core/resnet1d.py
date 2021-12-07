@@ -4,17 +4,11 @@ resnet for 1-d signal data, pytorch version
 Shenda Hong, Oct 2019
 """
 
-import numpy as np
-from collections import Counter
-from matplotlib import pyplot as plt
-from sklearn.metrics import classification_report 
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-from torchsummary import summary
 
 import arguments as args
 

@@ -75,8 +75,8 @@ if __name__ == '__main__':
     mydataset = CrepeDataset(args.train_data, args.sample_len, args.scaler, args.device)
     dataloader = torch.utils.data.DataLoader(mydataset, args.batch_size, shuffle = True)
     for song_tensor, hum_tensor, music_ids in dataloader:
-        print(song_tensor)
-        print(hum_tensor,)
+        print(song_tensor.shape)
+        print(hum_tensor.shape)
         print( music_ids)
         break
         
