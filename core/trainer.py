@@ -9,13 +9,11 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 import numpy as np
-from evaluator import Evaluator 
+from core.constants import LOG_FILE_PATH
 
-from preprocess_data import HumDatasetNoSplit
-from inception_resnet import *
 from triplet_mining_online import batch_hard_triplet_loss, batch_all_triplet_loss
-from constants import *
 
+LOG_FILE_PATH = r'C:\Users\ASUS\Desktop\repositories\hum_to_find\core'
 
 stream_handler = logging.StreamHandler()
 file_handler = logging.FileHandler(LOG_FILE_PATH)
@@ -30,8 +28,7 @@ logger.setLevel(logging.INFO)
 
 # TODO: evaluate on train datas
 class Trainer:
-    
-    def __init__(self, model, evaluator,  dataloader,
+    def __init__(self, model,
                 loss_fn, optimizer, eval_each_num_epochs: int,
                 checkpoint_epochs: int, epochs:int, device: str,
                 save_model_path: str) -> None:
@@ -40,8 +37,6 @@ class Trainer:
         
         Args:
             model: pytorch model to train
-            evaluator: evaluator object
-            dataloader:
             loss_fn:
             optimizer:
             eval_each_num_epochs: after this number of epochs, do one evaluation
@@ -54,8 +49,6 @@ class Trainer:
 
 
         self.model = model
-        self.evaluator = evaluator
-        self.dataloader = dataloader
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.eval_each_num_epochs = eval_each_num_epochs
@@ -63,17 +56,13 @@ class Trainer:
         self.epochs = epochs
         self.device = device
         self.save_model_path = save_model_path
-        
         # save training time for each epoch to estimate remaining time
         self.epoch_time = []
-
-
 
     def train_single_epoch(self,) -> None:
         self.model.train()
         epoch_loss = []
-        _positive_fractions = []
-        for inputs, targets in self.dataloader:
+        for music_ids, song_names, hum_names, song_tensor, hum_tensor in self.dataloader:
             # string target to int target
             inputs, targets = inputs.to(self.device), targets.to(self.device)
             embeddings = self.model(inputs)
@@ -82,14 +71,14 @@ class Trainer:
             loss.backward()
             self.optimizer.step()
             epoch_loss.append(loss.detach().item())
-            _positive_fractions.append(positive_rate)
 
         logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
 
-    def evaluate(self, mode: str = 'val') -> None:
+    def evaluate_on_train(self, ) -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
-
-        evaluator.evaluate(self.model)
+        pass
+    def evaluate_on_val(self, ) -> None:
+        pass
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
         """save the current model into self.save_model_path"""
