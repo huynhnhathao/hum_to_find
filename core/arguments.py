@@ -19,16 +19,21 @@ preprocessing steps:
 # save_model_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find'
 
 #colab path arguments
+log_file_path = '/content/drive/MyDrive/hum_project/log.txt'
+
 train_data_path = '/content/hum_to_find/crepe_freq/train_data.pkl'
+val_data_path = '/content/hum_to_find/crepe_freq/val_data.pkl'
 save_model_path = '/content/hum_to_find'
 
+pretrained_model_path = None
 
 # Trainer 
 epochs = 10000
 batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
-eval_each_num_epochs = 2
+eval_each_num_epochs = 50
 checkpoint_epochs = 50
+
 # Model arguments
 input_size = 1
 hidden_size = 1024
