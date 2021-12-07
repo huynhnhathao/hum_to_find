@@ -123,8 +123,8 @@ class Trainer:
 
             # if (i + 1) % self.eval_each_num_epochs == 0:
             #     self.evaluate_on_train() 
-            # if (i+1) % self.checkpoint_epochs == 0:
-            #     self.save_model(i+1)
+            if (i+1) % self.checkpoint_epochs == 0:
+                self.save_model(i+1)
         
         self.save_model('last_epoch')
         logger.info('Finish training.')
@@ -148,6 +148,6 @@ if __name__ == '__main__':
                                 lr = args.learning_rate)
     trainer = Trainer(model, loss_fn, optimizer, train_dataloader,
                     args.eval_each_num_epochs, args.checkpoint_epochs, args.epochs,
-                    args.device, args.save_model_path)
+                    args.device, args.save_model_path).to(args.device)
                     
     trainer.train()
