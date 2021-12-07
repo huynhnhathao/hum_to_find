@@ -77,7 +77,7 @@ class Trainer:
             targets = torch.cat((music_ids, music_ids), dim=0, ).to(self.device)
             embeddings = self.model(inputs)
         
-            loss, positive_rate = self.loss_fn(targets, embeddings, 1.0)
+            loss, positive_rate = self.loss_fn(targets, embeddings, 2.0)
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -141,13 +141,13 @@ if __name__ == '__main__':
                     args.device)
     train_dataloader = DataLoader(mydataset, args.batch_size, shuffle = True)
     model = ResNet1D(1, args.base_filters, args.kernel_size, args.stride,
-                args.groups, args.n_blocks, args.embedding_dim, )
+                args.groups, args.n_blocks, args.embedding_dim, ).to(args.device)
 
     loss_fn = batch_all_triplet_loss
     optimizer = torch.optim.Adam(model.parameters(), 
                                 lr = args.learning_rate)
     trainer = Trainer(model, loss_fn, optimizer, train_dataloader,
                     args.eval_each_num_epochs, args.checkpoint_epochs, args.epochs,
-                    args.device, args.save_model_path).to(args.device)
+                    args.device, args.save_model_path)
                     
     trainer.train()
