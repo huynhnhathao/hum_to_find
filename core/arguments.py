@@ -12,7 +12,8 @@ train_hum_freq = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\train_hu
 val_song_freq = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\val_song_crepe.pkl'
 val_hum_freq = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\val_hum_crepe.pkl'
 
-
+train_data = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\train_data.pkl'
+val_data = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\val_data.pkl'
 # Trainer arguments
 batch_size = 64
 

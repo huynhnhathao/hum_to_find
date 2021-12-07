@@ -64,8 +64,9 @@ class Trainer:
         epoch_loss = []
         for music_ids, song_names, hum_names, song_tensor, hum_tensor in self.dataloader:
             # string target to int target
-            inputs, targets = inputs.to(self.device), targets.to(self.device)
-            embeddings = self.model(inputs)
+            # inputs, targets = inputs.to(self.device), targets.to(self.device)
+            song_embeddings = self.model(song_tensor)
+            hum_embeddings = self.model(hum_tensor)
             loss, positive_rate = self.loss_fn(targets, embeddings, 1.0)
             self.optimizer.zero_grad()
             loss.backward()

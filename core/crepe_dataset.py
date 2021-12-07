@@ -4,6 +4,8 @@ import torch
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 
+import arguments as args 
+
 class CrepeDataset(Dataset):
     def __init__(self, 
                 data_path: str,
@@ -36,11 +38,13 @@ class CrepeDataset(Dataset):
     def _scale_data(self,) -> None:
         """Scaling if self.scaler is not None, """
         for i in range(len(self.data)):
+                self.data[i] = list(self.data[i])
                 self.data[i][-2] = self.scaler(self.data[i][-2])
                 self.data[i][-1] = self.scaler(self.data[i][-1])
 
     def _cut_and_pad_if_necessary(self,)-> None:
         for i in range(len(self.data)):
+
             # cut tail if longer than self.sample_len
             if self.data[i][-2].shape[0] > self.sample_len:
                 self.data[i][-2] = self.data[i][-2][:self.sample_len]
@@ -48,12 +52,12 @@ class CrepeDataset(Dataset):
                 self.data[i][-1] = self.data[i][-1][:self.sample_len]
             # pad tail if shorter than self.sample_len
             if self.data[i][-2].shape[0] < self.sample_len:
-                padding_size = self.sample_len - len(self.data[i][-2].shape[0])
+                padding_size = self.sample_len - self.data[i][-2].shape[0]
                 padding_ = np.zeros(padding_size)
                 self.data[i][-2] = np.concatenate([self.data[i][-2], padding_]) 
 
             if self.data[i][-1].shape[0] < self.sample_len:
-                padding_size = self.sample_len - len(self.data[i][-1].shape[0])
+                padding_size = self.sample_len - self.data[i][-1].shape[0]
                 padding_ = np.zeros(padding_size)
                 self.data[i][-1] = np.concatenate([self.data[i][-1], padding_])                    
 
@@ -65,3 +69,14 @@ class CrepeDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+
+if __name__ == '__main__':
+    mydataset = CrepeDataset(args.train_data, args.sample_len, args.scaler, args.device)
+    dataloader = torch.utils.data.DataLoader(mydataset, args.batch_size, shuffle = True)
+    for song_tensor, hum_tensor, music_ids in dataloader:
+        print(song_tensor)
+        print(hum_tensor,)
+        print( music_ids)
+        break
+        
