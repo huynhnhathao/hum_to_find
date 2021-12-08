@@ -6,7 +6,9 @@ import faiss
 import pandas as pd
 import numpy as np
 from torch import Tensor
-from hum_to_find.core import arguments as args
+
+from resnet1d import ResNet1D
+import arguments as args
 
 class Inferencer:
     def __init__(self, model_path: str, song_freq_path:str,

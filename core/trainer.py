@@ -1,9 +1,11 @@
 import logging
-from typing import Tuple, List, Union
+import pickle
+from typing import Tuple, List, Union, Any
 import time
 import os
 
 import torch
+from torch import Tensor
 from torch import nn 
 from torch.utils.data import DataLoader
 from crepe_dataset import CrepeDataset
@@ -26,10 +28,10 @@ logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
 logger.setLevel(logging.INFO)
 
-# TODO: evaluate on train datas
+# TODO: evaluate on train datas method
 class Trainer:
     def __init__(self, model,
-                loss_fn, optimizer, train_dataloader, val_dataloader,
+                loss_fn, optimizer, train_dataloader, val_data_path: str,
                 eval_each_num_epochs: int,
                 checkpoint_epochs: int, epochs:int, device: str,
                 save_model_path: str) -> None:
@@ -53,7 +55,7 @@ class Trainer:
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.train_dataloader = train_dataloader
-        self.val_dataloader = val_dataloader
+        self.val_data_path = val_data_path
         self.eval_each_num_epochs = eval_each_num_epochs
         self.checkpoint_epochs = checkpoint_epochs
         self.epochs = epochs
@@ -61,6 +63,56 @@ class Trainer:
         self.save_model_path = save_model_path
         # save training time for each epoch to estimate remaining time
         self.epoch_time = []
+
+        if self.val_data_path is not None:
+            self.val_data = self._preprocess_val_data()
+
+
+    def _preprocess_val_data(self) -> List[Tuple[List[int], List[int], Tensor, Tensor]]:
+        """Load val data"""
+        val_data = pickle.load(open(self.val_data_path, 'rb'))
+        
+        song_labels = []
+        hum_labels = []
+
+        song_tensors = []
+        hum_tensors = []
+
+        for sample in val_data:
+
+            song_freq = args.scaler(sample[-2])
+            hum_freq = args.scaler(sample[-1])
+
+            # split song freq
+            while len(song_freq) > args.chunk_len*100:
+                song_tensors.append(song_freq[:args.chunk_len*100])
+                song_freq = song_freq[args.chunk_len*100:]
+                song_labels.append(sample[0])
+
+            # pad the last chunk
+            padding_len = args.chunk_len*100 - len(song_freq)
+            pad_ = np.zeros(padding_len)
+            song_tensors.append(np.concatenate([song_freq, pad_]))
+            song_labels.append(sample[0])
+            # split hum freq
+
+            while len(hum_freq) > args.chunk_len*100:
+                hum_tensors.append(hum_freq[:args.chunk_len*100])
+                hum_freq = hum_freq[args.chunk_len*100:]
+                hum_labels.append(sample[0])
+
+            padding_len = args.chunk_len*100 - len(hum_freq)
+            pad_ = np.zeors(padding_len)
+            hum_tensors.append(np.concatenate([hum_freq, pad_]))
+            hum_labels.append(sample[0])
+
+        song_tensors = [torch.tensor(x, dtype=torch.float32, device = self.device).unsqueeze(0).unsqueeze(0) for x in song_tensors]
+        hum_tensors = [torch.tensor(x, dtype = torch.float32, device = self.device).unsqueeze(0).unsqueeze(0) for x in hum_tensors]
+
+        song_tensors_ = torch.cat(song_tensors, dim=0)
+        hum_tensors_ = torch.cat(hum_tensors, dim = 0)
+        # song_tensors_ and hum_tensors_ now are batchs of embeddings with shape (batch, 1, features_dim)
+        return (song_labels, hum_labels, song_tensors_, hum_tensors_)
 
     def train_single_epoch(self, eval_on_train: bool ) -> None:
         self.model.train()
@@ -101,22 +153,16 @@ class Trainer:
     def evaluate_on_train(self, ) -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
         pass
+    
     def evaluate_on_val(self, ) -> None:
         self.model.eval()
-        song_embeddings = []
-        hum_embeddings = []
-        embedding_labels = []
         with torch.no_grad():
-            for song_tensor, hum_tensor, music_ids in self.val_dataloader:
-                inputs = torch.cat((song_tensor, hum_tensor), dim=0, ).unsqueeze(1).to(self.device)
-                # targets = torch.cat((music_ids, music_ids), dim=0, ).to(self.device)
-                embeddings = self.model(inputs)
-                song_embeddings.append(embeddings[:len(music_ids), :].detach().cpu().numpy())
-                hum_embeddings.append(embeddings[len(music_ids):, :].detach().cpu().numpy())
-                embedding_labels.append(music_ids.detach().cpu().numpy())
+                song_embeddings = self.model(self.val_data[-2]).detach().cpu().numpy()
+                hum_embeddings = self.model(self.val_data[-1]).detach().cpu().numpy()     
 
-            mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
-                            hum_embeddings, embedding_labels).evaluate()
+        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
+                        hum_embeddings, self.val_data[0], self.val_data[1]).evaluate()
+
         logger.info(f'mrr on val: {mrr}')
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
@@ -133,7 +179,7 @@ class Trainer:
             # start = time.time()
             logger.info(f"Epoch {i+1}/{args.epochs}")
             
-            self.train_single_epoch(i%20==0)
+            self.train_single_epoch(False)
             # end = time.time()
             # time_spent = (end - start)/60
             # self.epoch_time.append(time_spent)

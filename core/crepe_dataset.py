@@ -2,7 +2,7 @@ import pickle
 import numpy as np
 import torch
 from torch import Tensor
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 import arguments as args 
 
@@ -14,8 +14,7 @@ class CrepeDataset(Dataset):
                 device: str
                 ):
         """Dataset class for CREPE features of audios
-        This dataset is expected to be padded and tupled with its label,
-        no preprocess needed here.
+
         example one sample: (song_tensor, hum_tensor, song_id)
         Args:
             annotation_path: path to annotation file
@@ -25,7 +24,6 @@ class CrepeDataset(Dataset):
                 will be padded.
             device: cpu or cuda 
         """
-        # self.annotation = pd.read_csv(annotation_path)
         self.data_path = data_path
         self.sample_len = sample_len
         self.scaler = scaler
@@ -63,20 +61,28 @@ class CrepeDataset(Dataset):
 
 
     def __getitem__(self, index):
-        return (torch.tensor(self.data[index][-2], dtype=torch.float, device=self.device),
-                torch.tensor(self.data[index][-1], dtype=torch.float, device=self.device),
-                torch.tensor(self.data[index][0], dtype=torch.long))
+        # random crop 4secs here
+        item = self.data[index]
+        cut_point = np.random.randint(0, 1100 - 400)
+        song_freq = item[-2][cut_point:cut_point+400]
+        hum_freq = item[-1][cut_point:cut_point+400]
+
+        return (torch.tensor(song_freq, dtype=torch.float, device=self.device),
+                torch.tensor(hum_freq, dtype=torch.float, device=self.device),
+                torch.tensor(item[0], dtype=torch.long))
 
     def __len__(self):
         return len(self.data)
 
-
 if __name__ == '__main__':
-    mydataset = CrepeDataset(args.train_data, args.sample_len, args.scaler, args.device)
+    mydataset = CrepeDataset(args.train_data_path, args.sample_len, args.scaler, args.device)
     dataloader = torch.utils.data.DataLoader(mydataset, args.batch_size, shuffle = True)
     for song_tensor, hum_tensor, music_ids in dataloader:
         print(song_tensor.shape)
         print(hum_tensor.shape)
         print( music_ids)
+        print(song_tensor)
+        print(hum_tensor)
+        print(len(mydataset))
         break
         

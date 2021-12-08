@@ -6,26 +6,22 @@ import numpy  as np
 import arguments as args 
 
 class FaissEvaluator:
-    def __init__(self, d: int, song_embeddings: List[Tensor], hum_embeddings: List[Tensor],
-            labels: List[Tensor], k=10):
+    def __init__(self, d: int, song_embeddings: np.ndarray, hum_embeddings: np.ndarray,
+            song_labels: List[int], hum_labels: List[int], k=10):
         """Using Faiss to run evaluator on song and hum embeddings
         """
         self.d = d
         self.song_embeddings = song_embeddings
         self.hum_embeddings = hum_embeddings
-        self.labels = labels
+        self.song_labels = song_labels
+        self.hum_labels = hum_labels
         self.k = k
 
-    
     def _run_faiss(self) -> float:
-        
-        self.song_embeddings = np.concatenate(self.song_embeddings, axis=0)
-        self.hum_embeddings = np.concatenate(self.hum_embeddings, axis=0)
-        self.labels = np.concatenate(self.labels, axis=0)
-        # assert len(self.labels) == len(self.hum_embeddings)
 
         index = faiss.IndexFlatL2(self.d) 
         index.add(self.song_embeddings)
+        
         D, I = index.search(self.hum_embeddings, self.k)
         return I 
 

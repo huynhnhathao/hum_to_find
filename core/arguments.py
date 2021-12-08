@@ -1,6 +1,21 @@
 #lstm embedder arguments
-
 """
+This branch ideas:
+    1. resnet1d has kernel size 5x1, embedding_dim 512, stride 1, total parameters
+        41M, model size ~200MB
+    2. input crepe is random split to 4sec chunk, only split when the dataset object
+        is called, randomly choose 4sec chunk in range 11 secs on both hum and song
+    
+    3. when evaluating, we run many 4secs chunks embedding over the query and the song.
+        for the song, we use a runing window of 4secs with hop size = 0.5sec over the
+        song, then each song has multiple embeddings corresponding to its chunks.
+        For the query, we run 4secs window of hop size = 0.5 over the query. Then
+        for each query's chunk embedding, we search on database of song embeddings.
+        Then we set a threshold of k <= 10, embeddings that in k-neighbors
+        to our query embedding is a match. Then if we have many match of one query
+        on one song, it probabily that song that we are looking for.
+
+     
 preprocessing steps:
     1. Min max scaler
     2. finer crepe 1 ms?
@@ -18,15 +33,25 @@ preprocessing steps:
 # log_file_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find\core'
 # save_model_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find'
 
+TRAIN_ON = 'home'
 #colab path arguments
-log_file_path = '/content/drive/MyDrive/hum_project/log.txt'
+if TRAIN_ON == 'colab':
+    log_file_path = '/content/drive/MyDrive/hum_project/log.txt'
 
-train_data_path = '/content/hum_to_find/crepe_freq/train_data.pkl'
-val_data_path = '/content/hum_to_find/crepe_freq/val_data.pkl'
-save_model_path = '/content/drive/MyDrive/hum_project'
+    train_data_path = '/content/hum_to_find/crepe_freq/train_data.pkl'
+    val_data_path = '/content/hum_to_find/crepe_freq/val_data.pkl'
+    save_model_path = '/content/drive/MyDrive/hum_project'
+    pretrained_model_path = '/content/drive/MyDrive/hum_project/model_epoch2500.pt'
 
-pretrained_model_path = '/content/drive/MyDrive/hum_project/model_epoch2500.pt'
+elif TRAIN_ON == 'home':
 
+    log_file_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find\core\log.txt'
+
+    train_data_path = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\train_data.pkl'
+    val_data_path = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\val_data.pkl'
+    save_model_path = '/content/drive/MyDrive/hum_project'
+    pretrained_model_path = '/content/drive/MyDrive/hum_project/model_epoch2500.pt'
+    
 # Trainer 
 epochs = 10000
 batch_size = 128 # the actual batchsize will double this
@@ -43,16 +68,16 @@ bidirectional = True
 proj_size = 512
 
 # resnet1d arguments
-base_filters = 8
-kernel_size = 10
-stride = 2
+base_filters = 32
+kernel_size = 5
+stride = 1
 groups = 1
-n_blocks = 28
+n_blocks = 23
 embedding_dim = 512
 
 
 # training arguments
-device = 'cuda'
+device = 'cpu'
 
 # dataset arguments
 # song freq and hum_freq should have different normalization parameters
@@ -62,3 +87,6 @@ LOW = -1
 HIGH = 1
 scaler = lambda x: LOW + ((x - MIN)*(HIGH-LOW))/(MAX-MIN)
 sample_len = 1100
+# len for each chunk of sample in second
+chunk_len = 4
+hop_len = 0.5
