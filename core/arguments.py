@@ -23,7 +23,7 @@ log_file_path = '/content/drive/MyDrive/hum_project/log.txt'
 
 train_data_path = '/content/hum_to_find/crepe_freq/train_data.pkl'
 val_data_path = '/content/hum_to_find/crepe_freq/val_data.pkl'
-save_model_path = '/content/hum_to_find'
+save_model_path = '/content/drive/MyDrive/hum_project'
 
 pretrained_model_path = '/content/drive/MyDrive/hum_project/model_epoch2500.pt'
 

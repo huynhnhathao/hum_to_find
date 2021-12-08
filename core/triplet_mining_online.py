@@ -139,7 +139,7 @@ def batch_hard_triplet_loss(labels, embeddings, margin, squared=False):
     tl = F.relu(tl)
     triplet_loss = tl.mean()
 
-    return triplet_loss
+    return triplet_loss, 0
 
 # Cell
 def batch_all_triplet_loss(labels, embeddings, margin, squared=False):

@@ -106,16 +106,17 @@ class Trainer:
         song_embeddings = []
         hum_embeddings = []
         embedding_labels = []
-        for song_tensor, hum_tensor, music_ids in self.val_dataloader:
-            inputs = torch.cat((song_tensor, hum_tensor), dim=0, ).unsqueeze(1).to(self.device)
-            targets = torch.cat((music_ids, music_ids), dim=0, ).to(self.device)
-            embeddings = self.model(inputs)
-            song_embeddings.append(embeddings[:len(music_ids), :].detach().cpu().numpy())
-            hum_embeddings.append(embeddings[len(music_ids):, :].detach().cpu().numpy())
-            embedding_labels.append(music_ids.detach().cpu().numpy())
+        with torch.no_grad():
+            for song_tensor, hum_tensor, music_ids in self.val_dataloader:
+                inputs = torch.cat((song_tensor, hum_tensor), dim=0, ).unsqueeze(1).to(self.device)
+                # targets = torch.cat((music_ids, music_ids), dim=0, ).to(self.device)
+                embeddings = self.model(inputs)
+                song_embeddings.append(embeddings[:len(music_ids), :].detach().cpu().numpy())
+                hum_embeddings.append(embeddings[len(music_ids):, :].detach().cpu().numpy())
+                embedding_labels.append(music_ids.detach().cpu().numpy())
 
-        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
-                        hum_embeddings, embedding_labels).evaluate()
+            mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
+                            hum_embeddings, embedding_labels).evaluate()
         logger.info(f'mrr on val: {mrr}')
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
@@ -143,7 +144,7 @@ class Trainer:
             #     self.evaluate_on_train() 
             if (i+1) % self.checkpoint_epochs == 0:
                 self.save_model(i+1)
-            if (i+1) % args.eval_each_num_epochs:
+            if (i+1) % args.eval_each_num_epochs == 0:
                 self.evaluate_on_val()
         
         self.save_model('last_epoch')
@@ -157,7 +158,7 @@ if __name__ == '__main__':
                     args.device)
     train_dataloader = DataLoader(mydataset, args.batch_size, shuffle = True)
     
-    val_dataset = CrepeDataset(args.val_data_path, args.sample_len, args.sacler, 
+    val_dataset = CrepeDataset(args.val_data_path, args.sample_len, args.scaler, 
                     args.device)
     val_dataloader = DataLoader(val_dataset, args.batch_size, shuffle=False)
 
@@ -171,7 +172,7 @@ if __name__ == '__main__':
     loss_fn = batch_all_triplet_loss
     optimizer = torch.optim.Adam(model.parameters(), 
                                 lr = args.learning_rate)
-    trainer = Trainer(model, loss_fn, optimizer, train_dataloader,
+    trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader, 
                     args.eval_each_num_epochs, args.checkpoint_epochs, args.epochs,
                     args.device, args.save_model_path)
                     
