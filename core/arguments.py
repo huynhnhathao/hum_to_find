@@ -78,7 +78,7 @@ base_filters = 16
 kernel_size = 5
 stride = 1
 groups = 1
-n_blocks = 26
+n_blocks = 24
 embedding_dim = 512
 
 

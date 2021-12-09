@@ -127,10 +127,10 @@ class Trainer:
         # song_tensors_ and hum_tensors_ now are batchs of embeddings with shape (batch, 1, features_dim)
 
         song_dataset = torch.utils.data.TensorDataset(song_tensors_, song_labels)
-        song_dataloader = torch.utils.data.DataLoader(song_dataset, 256, shuffle = False)
+        song_dataloader = torch.utils.data.DataLoader(song_dataset, 64, shuffle = False)
 
         hum_dataset = torch.utils.data.TensorDataset(hum_tensors_, hum_labels)
-        hum_dataloader = torch.utils.data.DataLoader(hum_dataset, 256, shuffle = False)
+        hum_dataloader = torch.utils.data.DataLoader(hum_dataset, 64, shuffle = False)
         return song_dataloader, hum_dataloader
 
     def train_single_epoch(self, eval_on_train: bool ) -> None:
@@ -159,6 +159,7 @@ class Trainer:
 
     def evaluate_on_train(self, ) -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
+        logger.info('Running evaluate on train')
         self.model.eval()
         all_song_embeddings = []
         all_hum_embeddings = []
@@ -192,6 +193,7 @@ class Trainer:
         logger.info(f'MRR ON TRAIN" {mrr}')
     
     def evaluate_on_val(self, ) -> None:
+        logger.info('Running evaluate on val')
         self.model.eval()
         all_song_embeddings = []
         all_hum_embeddings = []
@@ -264,7 +266,7 @@ if __name__ == '__main__':
     mydataset = CrepeDataset(args.train_data_path, args.sample_len, args.scaler, 
                     args.device)
 
-    train_dataloader = DataLoader(mydataset, args.batch_size, shuffle = True)
+    train_dataloader = DataLoader(mydataset, args.batch_size, shuffle = True, num_workers=4)
 
     model = ResNet1D(1, args.base_filters, args.kernel_size, args.stride,
                 args.groups, args.n_blocks, args.embedding_dim, ).to(args.device)
