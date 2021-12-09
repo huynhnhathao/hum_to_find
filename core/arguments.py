@@ -2,7 +2,7 @@
 This branch ideas:
 
     1. resnet1d has kernel size 5x1, embedding_dim 512, stride 1, total parameters
-        41M, model size ~200MB
+        blocks 26, base filter 16,
     2. input crepe is random split to 4sec chunk, only split when the dataset object
         is called, randomly choose 4sec chunk in range 11 secs on both hum and song
     
@@ -78,7 +78,7 @@ base_filters = 16
 kernel_size = 5
 stride = 1
 groups = 1
-n_blocks = 24
+n_blocks = 26
 embedding_dim = 512
 
 
