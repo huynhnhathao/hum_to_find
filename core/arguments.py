@@ -18,6 +18,10 @@ This branch ideas:
     
     4. increase the dataset len by a hack in dataset class, in order to increase the
         training time of one epoch
+
+    5. apply L2 normalize on embeddings
+
+    6. alpha in triplet loss is 1.0
      
 preprocessing steps:
     1. Min max scaler

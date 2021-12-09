@@ -136,7 +136,7 @@ class Trainer:
             targets = torch.cat((music_ids, music_ids), dim=0, ).to(self.device)
             embeddings = self.model(inputs)
         
-            loss, positive_rate = self.loss_fn(targets, embeddings, 2.0)
+            loss, positive_rate = self.loss_fn(targets, embeddings, 1.0)
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
