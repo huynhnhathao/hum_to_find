@@ -187,7 +187,7 @@ class Trainer:
         all_hum_labels = np.array(all_hum_labels)
 
         mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, all_song_embeddings, 
-                all_hum_embeddings, all_song_labels, all_hum_labels)
+                all_hum_embeddings, all_song_labels, all_hum_labels).evaluate()
 
         logger.info(f'MRR ON TRAIN" {mrr}')
     
@@ -220,7 +220,7 @@ class Trainer:
         all_hum_labels = np.array(all_hum_labels)
 
         mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, all_song_embeddings, 
-                all_hum_embeddings, all_song_labels, all_hum_labels)
+                all_hum_embeddings, all_song_labels, all_hum_labels).evaluate()
 
         logger.info(f'MRR ON VAL" {mrr}')
 
@@ -235,20 +235,22 @@ class Trainer:
 
     def train(self, )-> None:
         for i in range(self.epochs):
-            # start = time.time()
+            start = time.time()
             logger.info(f"Epoch {i+1}/{args.epochs}")
             
             self.train_single_epoch(True)
-            # end = time.time()
-            # time_spent = (end - start)/60
-            # self.epoch_time.append(time_spent)
-            # logger.info(f"Estimated time per epoch: {np.mean(self.epoch_time)}-minutes")
-            # logger.info(f"Estimated remaining time: {(self.epochs - i - 1)*np.mean(self.epoch_time)}-minutes")
+            end = time.time()
+            time_spent = (end - start)/60
+            self.epoch_time.append(time_spent)
+            logger.info(f"Estimated time per epoch: {np.mean(self.epoch_time)}-minutes")
+            logger.info(f"Estimated remaining time: {(self.epochs - i - 1)*np.mean(self.epoch_time)}-minutes")
 
-            # if (i + 1) % self.eval_each_num_epochs == 0:
-            #     self.evaluate_on_train() 
             if (i+1) % self.checkpoint_epochs == 0:
                 self.save_model(i+1)
+
+            if (i + 1) % self.eval_each_num_epochs == 0:
+                self.evaluate_on_train() 
+
             if (i+1) % args.eval_each_num_epochs == 0:
                 self.evaluate_on_val()
         

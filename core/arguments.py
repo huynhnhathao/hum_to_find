@@ -47,7 +47,7 @@ if TRAIN_ON == 'colab':
     train_data_path = '/content/hum_to_find/crepe_freq/train_data.pkl'
     val_data_path = '/content/hum_to_find/crepe_freq/val_data.pkl'
     save_model_path = '/content/drive/MyDrive/hum_project'
-    pretrained_model_path = '/content/drive/MyDrive/hum_project/model_epoch2500.pt'
+    pretrained_model_path = None
 
 elif TRAIN_ON == 'home':
 
@@ -96,7 +96,7 @@ sample_len = 1100
 # len for each chunk of sample in second
 chunk_len = 4
 hop_len = 0.5
-
+epoch_hack = 10
 # GPU usage report
 # print(torch.cuda.get_device_name(0))
 # print('-'*100)

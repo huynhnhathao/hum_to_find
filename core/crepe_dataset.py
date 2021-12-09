@@ -73,7 +73,7 @@ class CrepeDataset(Dataset):
                 torch.tensor(item[0], dtype=torch.long))
 
     def __len__(self):
-        return len(self.data)*50
+        return len(self.data)*args.epoch_hack
 
 if __name__ == '__main__':
     mydataset = CrepeDataset(args.train_data_path, args.sample_len, args.scaler, args.device)

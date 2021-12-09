@@ -30,28 +30,30 @@ class FaissEvaluator:
         """
         neighbors = {}
         I = self._run_faiss()
-        print(I)
-        for music_id, nb in zip(self.hum_labels, I):
-            if music_id not in neighbors.keys():
-                neighbors[music_id] = []
+        for music_id, nb in zip(self.hum_labels[:, 0], I):
+            if int(music_id) not in neighbors.keys():
+                neighbors[int(music_id)] = []
 
             neighbors[music_id].extend([self.song_labels[x] for x in nb])
-
         mrr = []
         # voting here
         for key, value in neighbors.items():
+            # rearange the value such that nearest neighbors come first
+            value = [value[x:x+5] for x in range(0, len(value), 5)]
+            value = [x[i] for x in value for i in x]
+
             this_neighbors = []
             song_ids, counts = np.unique(value, return_counts = True)
             sorted_args = np.argsort(counts)
+
             for nb in reversed(sorted_args):
                 if counts[nb] ==1:
                     break
                 this_neighbors.append(int(song_ids[nb]))
-
             j=0
             while len(this_neighbors) < 10 and j < len(value):
                 if value[j] not in this_neighbors:
-                    this_neighbors.append(value[j])
+                    this_neighbors.append(value[j][0])
 
                 j+= 1
 
@@ -59,7 +61,6 @@ class FaissEvaluator:
                 this_neighbors.append(0)
 
             this_neighbors = this_neighbors[:10]
-            print(this_neighbors)
             if key not in this_neighbors:
                 mrr.append(0)
             else:
