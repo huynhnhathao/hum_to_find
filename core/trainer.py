@@ -32,6 +32,7 @@ logger.setLevel(logging.INFO)
 class Trainer:
     def __init__(self, model,
                 loss_fn, optimizer, train_dataloader, val_data_path: str,
+                train_data_path: str,
                 eval_each_num_epochs: int,
                 checkpoint_epochs: int, epochs:int, device: str,
                 save_model_path: str) -> None:
@@ -56,6 +57,8 @@ class Trainer:
         self.optimizer = optimizer
         self.train_dataloader = train_dataloader
         self.val_data_path = val_data_path
+        self.train_data_path = train_data_path
+
         self.eval_each_num_epochs = eval_each_num_epochs
         self.checkpoint_epochs = checkpoint_epochs
         self.epochs = epochs
@@ -64,13 +67,20 @@ class Trainer:
         # save training time for each epoch to estimate remaining time
         self.epoch_time = []
 
+        self.val_data = None
+        self.train_data = None
+
         if self.val_data_path is not None:
-            self.val_data = self._preprocess_val_data()
+            self.val_data = self._preprocess_val_data(self.val_data_path)
+        
+        if self.train_data_path is not None:
+            self.train_data = self._preprocess_val_data(self.train_data_path)
 
 
-    def _preprocess_val_data(self) -> List[Tuple[List[int], List[int], Tensor, Tensor]]:
+    def _preprocess_val_data(self,
+            data_path: str) -> List[Tuple[List[int], List[int], Tensor, Tensor]]:
         """Load val data"""
-        val_data = pickle.load(open(self.val_data_path, 'rb'))
+        val_data = pickle.load(open(data_path, 'rb'))
         
         song_labels = []
         hum_labels = []
@@ -117,11 +127,6 @@ class Trainer:
     def train_single_epoch(self, eval_on_train: bool ) -> None:
         self.model.train()
         # collect embeddings to do evaluation on train
-        if eval_on_train:
-            song_embeddings = []
-            hum_embeddings = []
-            embedding_labels = []
-
         epoch_loss = []
         positive_rates = []
         for song_tensor, hum_tensor, music_ids in self.train_dataloader:
@@ -138,21 +143,21 @@ class Trainer:
             epoch_loss.append(loss.detach().item())
             positive_rates.append(positive_rate)
 
-            if eval_on_train:
-                song_embeddings.append(embeddings[:len(music_ids), :].detach().cpu().numpy())
-                hum_embeddings.append(embeddings[len(music_ids):, :].detach().cpu().numpy())
-                embedding_labels.append(music_ids.detach().cpu().numpy())
-
         logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
         logger.info(f'positive rate: {sum(positive_rates)/len(positive_rates)}')
         if eval_on_train:
-            mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
-                            hum_embeddings, embedding_labels).evaluate()
-            logger.info(f'train mrr: {mrr}')
+            self.evaluate_on_train()
 
     def evaluate_on_train(self, ) -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
-        pass
+        self.model.eval()
+        with torch.no_grad():
+            song_embeddings = self.model(self.train_data[-2].detach().cpu().numpy())
+            hum_embeddings = self.model(self.train_data[-1].detach().cpu().numpy())
+
+        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings, 
+                hum_embeddings, self.train_data[0], self.train_data[1])
+        logger.info(f'MRR ON TRAIN" {mrr}')
     
     def evaluate_on_val(self, ) -> None:
         self.model.eval()
@@ -163,7 +168,7 @@ class Trainer:
         mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
                         hum_embeddings, self.val_data[0], self.val_data[1]).evaluate()
 
-        logger.info(f'mrr on val: {mrr}')
+        logger.info(f'MRR ON VAL: {mrr}')
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
         """save the current model into self.save_model_path"""
@@ -179,7 +184,7 @@ class Trainer:
             # start = time.time()
             logger.info(f"Epoch {i+1}/{args.epochs}")
             
-            self.train_single_epoch(False)
+            self.train_single_epoch(True)
             # end = time.time()
             # time_spent = (end - start)/60
             # self.epoch_time.append(time_spent)
@@ -202,11 +207,8 @@ if __name__ == '__main__':
 
     mydataset = CrepeDataset(args.train_data_path, args.sample_len, args.scaler, 
                     args.device)
+
     train_dataloader = DataLoader(mydataset, args.batch_size, shuffle = True)
-    
-    val_dataset = CrepeDataset(args.val_data_path, args.sample_len, args.scaler, 
-                    args.device)
-    val_dataloader = DataLoader(val_dataset, args.batch_size, shuffle=False)
 
     model = ResNet1D(1, args.base_filters, args.kernel_size, args.stride,
                 args.groups, args.n_blocks, args.embedding_dim, ).to(args.device)
@@ -218,8 +220,9 @@ if __name__ == '__main__':
     loss_fn = batch_all_triplet_loss
     optimizer = torch.optim.Adam(model.parameters(), 
                                 lr = args.learning_rate)
-    trainer = Trainer(model, loss_fn, optimizer, train_dataloader, val_dataloader, 
-                    args.eval_each_num_epochs, args.checkpoint_epochs, args.epochs,
+    trainer = Trainer(model, loss_fn, optimizer, train_dataloader, args.val_data_path,
+                    args.train_data_path, args.eval_each_num_epochs,
+                    args.checkpoint_epochs, args.epochs,
                     args.device, args.save_model_path)
                     
     trainer.train()

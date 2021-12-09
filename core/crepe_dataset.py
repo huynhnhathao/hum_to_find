@@ -62,6 +62,7 @@ class CrepeDataset(Dataset):
 
     def __getitem__(self, index):
         # random crop 4secs here
+        index = index%len(self.data)
         item = self.data[index]
         cut_point = np.random.randint(0, 1100 - 400)
         song_freq = item[-2][cut_point:cut_point+400]
@@ -72,7 +73,7 @@ class CrepeDataset(Dataset):
                 torch.tensor(item[0], dtype=torch.long))
 
     def __len__(self):
-        return len(self.data)
+        return len(self.data)*50
 
 if __name__ == '__main__':
     mydataset = CrepeDataset(args.train_data_path, args.sample_len, args.scaler, args.device)

@@ -28,16 +28,31 @@ class FaissEvaluator:
     def evaluate(self) -> float:
         """Compute mrr
         """
-        rr = []
+        neighbors = {}
         I = self._run_faiss()
-        for i, preds in enumerate(I):
-            if i not in preds:
-                rr.append(0)
-            else:
-                idx = np.where(preds==i)[0][0] + 1
-                rr.append(1/idx)
+        for music_id, nb in zip(self.hum_labels, I):
+            if music_id not in neighbors.keys():
+                neighbors[music_id] = []
 
-        return np.mean(rr)
+            neighbors[music_id].extend([self.song_labels[x] for x in nb])
+
+        mrr = []
+        # voting here
+        for key, value in neighbors:
+            this_neighbors = []
+            song_ids, counts = np.unique(value, return_counts = True)
+            sorted_args = np.argsort(counts)
+            for nb in reversed(sorted_args):
+                this_neighbors.append(int(song_ids[nb]))
+
+            this_neighbors = this_neighbors[:10]
+            if key not in this_neighbors:
+                mrr.append(0)
+            else:
+                idx = np.where(np.array(this_neighbors) == int(key),)[0][0] + 1
+                mrr.append(1/idx)
+
+        return np.mean(mrr)
 
 
 if __name__ == '__main__':
@@ -50,3 +65,4 @@ if __name__ == '__main__':
 
 
 
+#TEST THIS SHIT

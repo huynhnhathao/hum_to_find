@@ -1,6 +1,7 @@
 #lstm embedder arguments
 """
 This branch ideas:
+
     1. resnet1d has kernel size 5x1, embedding_dim 512, stride 1, total parameters
         41M, model size ~200MB
     2. input crepe is random split to 4sec chunk, only split when the dataset object
@@ -14,7 +15,9 @@ This branch ideas:
         Then we set a threshold of k <= 10, embeddings that in k-neighbors
         to our query embedding is a match. Then if we have many match of one query
         on one song, it probabily that song that we are looking for.
-
+    
+    4. increase the dataset len by a hack in dataset class, in order to increase the
+        training time of one epoch
      
 preprocessing steps:
     1. Min max scaler
@@ -49,15 +52,15 @@ elif TRAIN_ON == 'home':
 
     train_data_path = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\train_data.pkl'
     val_data_path = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\val_data.pkl'
-    save_model_path = '/content/drive/MyDrive/hum_project'
-    pretrained_model_path = '/content/drive/MyDrive/hum_project/model_epoch2500.pt'
+    save_model_path = r'C:\Users\ASUS\Desktop\hum\data'
+    pretrained_model_path = r'C:\Users\ASUS\Desktop\hum\data\model_epoch2500.pt'
     
 # Trainer 
 epochs = 10000
 batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
-eval_each_num_epochs = 50
-checkpoint_epochs = 50
+eval_each_num_epochs = 1
+checkpoint_epochs = 1
 
 # Model arguments
 input_size = 1
