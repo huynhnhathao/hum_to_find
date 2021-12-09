@@ -7,7 +7,7 @@ import arguments as args
 
 class FaissEvaluator:
     def __init__(self, d: int, song_embeddings: np.ndarray, hum_embeddings: np.ndarray,
-            song_labels: List[int], hum_labels: List[int], k=10):
+            song_labels: List[int], hum_labels: List[int], k=5):
         """Using Faiss to run evaluator on song and hum embeddings
         """
         self.d = d
@@ -30,6 +30,7 @@ class FaissEvaluator:
         """
         neighbors = {}
         I = self._run_faiss()
+        print(I)
         for music_id, nb in zip(self.hum_labels, I):
             if music_id not in neighbors.keys():
                 neighbors[music_id] = []
@@ -38,14 +39,27 @@ class FaissEvaluator:
 
         mrr = []
         # voting here
-        for key, value in neighbors:
+        for key, value in neighbors.items():
             this_neighbors = []
             song_ids, counts = np.unique(value, return_counts = True)
             sorted_args = np.argsort(counts)
             for nb in reversed(sorted_args):
+                if counts[nb] ==1:
+                    break
                 this_neighbors.append(int(song_ids[nb]))
 
+            j=0
+            while len(this_neighbors) < 10 and j < len(value):
+                if value[j] not in this_neighbors:
+                    this_neighbors.append(value[j])
+
+                j+= 1
+
+            while len(this_neighbors) < 10:
+                this_neighbors.append(0)
+
             this_neighbors = this_neighbors[:10]
+            print(this_neighbors)
             if key not in this_neighbors:
                 mrr.append(0)
             else:
@@ -57,12 +71,12 @@ class FaissEvaluator:
 
 if __name__ == '__main__':
     # sanity check here
-    song_embeddings = [np.random.randn(4, 64).astype('float32') for i in range(32)]
-    queries = [song_embeddings[0]]
-    labels = [np.random.randint(0, 10, 4) for i in range(32)]
-    evalutator = FaissEvaluator(64, song_embeddings, queries, labels, )
+    d = 64
+    song_embeddings = np.random.randn(100, d).astype('float32')
+    queries = np.array([song_embeddings[x, :] for x in range(5)])
+    song_labels = np.arange(0, 100)
+    hum_labels = song_labels[:5]
+
+    evalutator = FaissEvaluator(d, song_embeddings, queries, song_labels, hum_labels )
     print(evalutator.evaluate())
 
-
-
-#TEST THIS SHIT
