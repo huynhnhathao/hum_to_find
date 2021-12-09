@@ -77,10 +77,10 @@ proj_size = 512
 
 # resnet1d arguments
 base_filters = 16
-kernel_size = 5
+kernel_size = 8
 stride = 2
 groups = 1
-n_blocks = 26
+n_blocks = 28
 embedding_dim = 512
 
 
@@ -96,7 +96,7 @@ HIGH = 1
 scaler = lambda x: LOW + ((x - MIN)*(HIGH-LOW))/(MAX-MIN)
 sample_len = 1100
 # len for each chunk of sample in second
-chunk_len = 4
+chunk_len = 8
 hop_len = 0.5
 epoch_hack = 50
 # GPU usage report

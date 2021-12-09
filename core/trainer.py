@@ -275,7 +275,7 @@ if __name__ == '__main__':
         logger.info(f'Load model state_dict from {args.pretrained_model_path}')
         model.load_state_dict(torch.load(args.pretrained_model_path))
 
-    loss_fn = batch_hard_triplet_loss
+    loss_fn = batch_all_triplet_loss
     optimizer = torch.optim.Adam(model.parameters(), 
                                 lr = args.learning_rate)
     trainer = Trainer(model, loss_fn, optimizer, train_dataloader, args.val_data_path,

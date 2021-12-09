@@ -64,9 +64,9 @@ class CrepeDataset(Dataset):
         # random crop 4secs here
         index = index%len(self.data)
         item = self.data[index]
-        cut_point = np.random.randint(0, 1100 - 400)
-        song_freq = item[-2][cut_point:cut_point+400]
-        hum_freq = item[-1][cut_point:cut_point+400]
+        cut_point = np.random.randint(0, args.sample_len - args.chunk_len*100)
+        song_freq = item[-2][cut_point:cut_point+args.chunk_len*100]
+        hum_freq = item[-1][cut_point:cut_point+args.chunk_len*100]
 
         return (torch.tensor(song_freq, dtype=torch.float, device=self.device),
                 torch.tensor(hum_freq, dtype=torch.float, device=self.device),
