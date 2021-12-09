@@ -71,10 +71,10 @@ class Trainer:
         self.train_data = None
 
         if self.val_data_path is not None:
-            self.val_data = self._preprocess_val_data(self.val_data_path)
+            self.val_song_dataloader, self.val_hum_dataloader = self._preprocess_val_data(self.val_data_path)
         
         if self.train_data_path is not None:
-            self.train_data = self._preprocess_val_data(self.train_data_path)
+            self.train_song_dataloader, self.train_hum_dataloader = self._preprocess_val_data(self.train_data_path)
 
 
     def _preprocess_val_data(self,
@@ -121,13 +121,17 @@ class Trainer:
 
         song_tensors_ = torch.cat(song_tensors, dim=0)
         hum_tensors_ = torch.cat(hum_tensors, dim = 0)
-        song_labels = torch.tensor(song_labels, dtype = torch.long)
-        hum_labels = torch.tensor(hum_labels, dtype = torch.long)
+
+        song_labels = torch.tensor(song_labels, dtype = torch.long).unsqueeze(1)
+        hum_labels = torch.tensor(hum_labels, dtype = torch.long).unsqueeze(1)
         # song_tensors_ and hum_tensors_ now are batchs of embeddings with shape (batch, 1, features_dim)
 
-        dataset = torch.utils.data.TensorDataset(song_tensors_, hum_tensors_, song_labels, hum_labels)
-        dataloader = torch.utils.data.DataLoader(dataset, 256, shuffle = False)
-        return dataloader
+        song_dataset = torch.utils.data.TensorDataset(song_tensors_, song_labels)
+        song_dataloader = torch.utils.data.DataLoader(song_dataset, 256, shuffle = False)
+
+        hum_dataset = torch.utils.data.TensorDataset(hum_tensors_, hum_labels)
+        hum_dataloader = torch.utils.data.DataLoader(hum_dataset, 256, shuffle = False)
+        return song_dataloader, hum_dataloader
 
     def train_single_epoch(self, eval_on_train: bool ) -> None:
         self.model.train()
@@ -160,16 +164,21 @@ class Trainer:
         all_hum_embeddings = []
         all_song_labels = []
         all_hum_labels = []
-        with torch.no_grad():
-            for song_tensor, hum_tensor, song_labels, hum_labels in self.train_data:
-                song_embeddings = self.model(song_tensor.to(self.device)).detach().cpu().numpy()
-                hum_embeddings = self.model(hum_tensor.to(self.device)).detach().cpu().numpy()
 
+        with torch.no_grad():
+            for song_tensor, song_labels in self.train_song_dataloader:
+                song_embeddings = self.model(song_tensor.to(self.device)).detach().cpu().numpy()
                 all_song_embeddings.append(song_embeddings)
-                all_hum_embeddings.append(hum_embeddings)
 
                 all_song_labels.extend(list(song_labels.detach().cpu().numpy()))
+
+            for hum_tensor, hum_labels in self.train_hum_dataloader:
+                hum_embeddings = self.model(hum_tensor.to(self.device)).detach().cpu().numpy()
+
+                all_hum_embeddings.append(hum_embeddings)
+
                 all_hum_labels.extend(list(hum_labels.detach().cpu().numpy()))
+
 
         all_song_embeddings = np.concatenate(all_song_embeddings, axis = 0)
         all_hum_embeddings = np.concatenate(all_hum_embeddings, axis = 0)
@@ -188,16 +197,21 @@ class Trainer:
         all_hum_embeddings = []
         all_song_labels = []
         all_hum_labels = []
-        with torch.no_grad():
-            for song_tensor, hum_tensor, song_labels, hum_labels in self.val_data:
-                song_embeddings = self.model(song_tensor.to(self.device)).detach().cpu().numpy()
-                hum_embeddings = self.model(hum_tensor.to(self.device)).detach().cpu().numpy()
 
+        with torch.no_grad():
+            for song_tensor, song_labels in self.val_song_dataloader:
+                song_embeddings = self.model(song_tensor.to(self.device)).detach().cpu().numpy()
                 all_song_embeddings.append(song_embeddings)
-                all_hum_embeddings.append(hum_embeddings)
 
                 all_song_labels.extend(list(song_labels.detach().cpu().numpy()))
+
+            for hum_tensor, hum_labels in self.val_hum_dataloader:
+                hum_embeddings = self.model(hum_tensor.to(self.device)).detach().cpu().numpy()
+
+                all_hum_embeddings.append(hum_embeddings)
+
                 all_hum_labels.extend(list(hum_labels.detach().cpu().numpy()))
+
 
         all_song_embeddings = np.concatenate(all_song_embeddings, axis = 0)
         all_hum_embeddings = np.concatenate(all_hum_embeddings, axis = 0)
@@ -209,7 +223,6 @@ class Trainer:
                 all_hum_embeddings, all_song_labels, all_hum_labels)
 
         logger.info(f'MRR ON VAL" {mrr}')
-    
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
         """save the current model into self.save_model_path"""
