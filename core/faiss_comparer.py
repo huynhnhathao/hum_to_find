@@ -13,8 +13,8 @@ class FaissEvaluator:
         self.d = d
         self.song_embeddings = song_embeddings
         self.hum_embeddings = hum_embeddings
-        self.song_labels = song_labels
-        self.hum_labels = hum_labels
+        self.song_labels = list(song_labels.flatten())
+        self.hum_labels = list(hum_labels.flatten())
         self.k = k
 
     def _run_faiss(self) -> float:
@@ -30,7 +30,8 @@ class FaissEvaluator:
         """
         neighbors = {}
         I = self._run_faiss()
-        for music_id, nb in zip(self.hum_labels[:, 0], I):
+        for music_id, nb in zip(self.hum_labels, I):
+
             if int(music_id) not in neighbors.keys():
                 neighbors[int(music_id)] = []
 
@@ -38,6 +39,7 @@ class FaissEvaluator:
         mrr = []
         # voting here
         for key, value in neighbors.items():
+            # print(value)
             # rearange the value such that nearest neighbors come first
             value = [value[x:x+5] for x in range(0, len(value), 5)]
             value = [item for sublist in value for item in sublist]
@@ -54,7 +56,7 @@ class FaissEvaluator:
             j=0
             while len(this_neighbors) < 10 and j < len(value):
                 if value[j] not in this_neighbors:
-                    this_neighbors.append(value[j][0])
+                  this_neighbors.append(value[j])
 
                 j+= 1
 
@@ -70,14 +72,15 @@ class FaissEvaluator:
 
         return np.mean(mrr)
 
-
 if __name__ == '__main__':
     # sanity check here
     d = 64
     song_embeddings = np.random.randn(100, d).astype('float32')
     queries = np.array([song_embeddings[x, :] for x in range(5)])
+    print(song_embeddings.shape)
+    print(queries.shape)
     song_labels = np.arange(0, 100)
-    hum_labels = song_labels[:5]
+    hum_labels = song_labels[:5].reshape(-1, 1)
 
     evalutator = FaissEvaluator(d, song_embeddings, queries, song_labels, hum_labels )
     print(evalutator.evaluate())

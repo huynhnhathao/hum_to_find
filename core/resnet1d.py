@@ -302,5 +302,5 @@ class ResNet1D(nn.Module):
 if __name__ == '__main__':
     mynet = ResNet1D(1, args.base_filters, args.kernel_size, args.stride,
                 args.groups, args.n_blocks, args.embedding_dim, )
-    sample = torch.randn((1, 10000, 1))
-    summary(mynet, (1, 300))
+    # sample = torch.randn((1, 10000, 1))
+    summary(mynet, (1, 400))

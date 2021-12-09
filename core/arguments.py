@@ -1,6 +1,7 @@
 """
 This branch ideas:
-
+The stride of kernel significantly affect the runing time, stride 1 run 5mins, 
+    but stride 2 run 0.x min
     1. resnet1d has kernel size 5x1, embedding_dim 512, stride 1, total parameters
         blocks 26, base filter 16,
     2. input crepe is random split to 4sec chunk, only split when the dataset object
@@ -39,7 +40,7 @@ preprocessing steps:
 # log_file_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find\core'
 # save_model_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find'
 
-TRAIN_ON = 'home'
+TRAIN_ON = 'colab'
 #colab path arguments
 if TRAIN_ON == 'colab':
     log_file_path = '/content/drive/MyDrive/hum_project/log.txt'
@@ -64,6 +65,7 @@ batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
 eval_each_num_epochs = 1
 checkpoint_epochs = 1
+alpha_triplet_loss = 2.0
 
 # Model arguments
 input_size = 1
@@ -76,14 +78,14 @@ proj_size = 512
 # resnet1d arguments
 base_filters = 16
 kernel_size = 5
-stride = 1
+stride = 2
 groups = 1
-n_blocks = 24
+n_blocks = 26
 embedding_dim = 512
 
 
 # training arguments
-device = 'cpu'
+device = 'cuda'
 
 # dataset arguments
 # song freq and hum_freq should have different normalization parameters
@@ -96,7 +98,7 @@ sample_len = 1100
 # len for each chunk of sample in second
 chunk_len = 4
 hop_len = 0.5
-epoch_hack = 10
+epoch_hack = 50
 # GPU usage report
 # print(torch.cuda.get_device_name(0))
 # print('-'*100)

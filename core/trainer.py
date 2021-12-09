@@ -145,7 +145,7 @@ class Trainer:
             targets = torch.cat((music_ids, music_ids), dim=0, ).to(self.device)
             embeddings = self.model(inputs)
         
-            loss, positive_rate = self.loss_fn(targets, embeddings, 1.0)
+            loss, positive_rate = self.loss_fn(targets, embeddings, args.alpha_triplet_loss)
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -240,7 +240,7 @@ class Trainer:
             start = time.time()
             logger.info(f"Epoch {i+1}/{args.epochs}")
             
-            self.train_single_epoch(True)
+            self.train_single_epoch(False)
             end = time.time()
             time_spent = (end - start)/60
             self.epoch_time.append(time_spent)
@@ -275,7 +275,7 @@ if __name__ == '__main__':
         logger.info(f'Load model state_dict from {args.pretrained_model_path}')
         model.load_state_dict(torch.load(args.pretrained_model_path))
 
-    loss_fn = batch_all_triplet_loss
+    loss_fn = batch_hard_triplet_loss
     optimizer = torch.optim.Adam(model.parameters(), 
                                 lr = args.learning_rate)
     trainer = Trainer(model, loss_fn, optimizer, train_dataloader, args.val_data_path,
