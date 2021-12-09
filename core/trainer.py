@@ -266,7 +266,7 @@ if __name__ == '__main__':
     mydataset = CrepeDataset(args.train_data_path, args.sample_len, args.scaler, 
                     args.device)
 
-    train_dataloader = DataLoader(mydataset, args.batch_size, shuffle = True, num_workers=4)
+    train_dataloader = DataLoader(mydataset, args.batch_size, shuffle = True, num_workers=0)
 
     model = ResNet1D(1, args.base_filters, args.kernel_size, args.stride,
                 args.groups, args.n_blocks, args.embedding_dim, ).to(args.device)
