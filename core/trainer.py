@@ -78,7 +78,7 @@ class Trainer:
 
 
     def _preprocess_val_data(self,
-            data_path: str) -> List[Tuple[List[int], List[int], Tensor, Tensor]]:
+            data_path: str) -> torch.utils.data.DataLoader:
         """Load val data"""
         val_data = pickle.load(open(data_path, 'rb'))
         
@@ -112,17 +112,22 @@ class Trainer:
                 hum_labels.append(sample[0])
 
             padding_len = args.chunk_len*100 - len(hum_freq)
-            pad_ = np.zeors(padding_len)
+            pad_ = np.zeros(padding_len)
             hum_tensors.append(np.concatenate([hum_freq, pad_]))
             hum_labels.append(sample[0])
 
-        song_tensors = [torch.tensor(x, dtype=torch.float32, device = self.device).unsqueeze(0).unsqueeze(0) for x in song_tensors]
-        hum_tensors = [torch.tensor(x, dtype = torch.float32, device = self.device).unsqueeze(0).unsqueeze(0) for x in hum_tensors]
+        song_tensors = [torch.tensor(x, dtype=torch.float32, ).unsqueeze(0).unsqueeze(0) for x in song_tensors]
+        hum_tensors = [torch.tensor(x, dtype = torch.float32,).unsqueeze(0).unsqueeze(0) for x in hum_tensors]
 
         song_tensors_ = torch.cat(song_tensors, dim=0)
         hum_tensors_ = torch.cat(hum_tensors, dim = 0)
+        song_labels = torch.tensor(song_labels, dtype = torch.long)
+        hum_labels = torch.tensor(hum_labels, dtype = torch.long)
         # song_tensors_ and hum_tensors_ now are batchs of embeddings with shape (batch, 1, features_dim)
-        return (song_labels, hum_labels, song_tensors_, hum_tensors_)
+
+        dataset = torch.utils.data.TensorDataset(song_tensors_, hum_tensors_, song_labels, hum_labels)
+        dataloader = torch.utils.data.DataLoader(dataset, 256, shuffle = False)
+        return dataloader
 
     def train_single_epoch(self, eval_on_train: bool ) -> None:
         self.model.train()
@@ -140,7 +145,7 @@ class Trainer:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            epoch_loss.append(loss.detach().item())
+            epoch_loss.append(loss.detach().cpu().item())
             positive_rates.append(positive_rate)
 
         logger.info(f'loss: {sum(epoch_loss)/len(epoch_loss)}')
@@ -151,24 +156,60 @@ class Trainer:
     def evaluate_on_train(self, ) -> None:
         """Evaluate model on val data, using mean reciprocal rank"""
         self.model.eval()
+        all_song_embeddings = []
+        all_hum_embeddings = []
+        all_song_labels = []
+        all_hum_labels = []
         with torch.no_grad():
-            song_embeddings = self.model(self.train_data[-2].detach().cpu().numpy())
-            hum_embeddings = self.model(self.train_data[-1].detach().cpu().numpy())
+            for song_tensor, hum_tensor, song_labels, hum_labels in self.train_data:
+                song_embeddings = self.model(song_tensor.to(self.device)).detach().cpu().numpy()
+                hum_embeddings = self.model(hum_tensor.to(self.device)).detach().cpu().numpy()
 
-        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings, 
-                hum_embeddings, self.train_data[0], self.train_data[1])
+                all_song_embeddings.append(song_embeddings)
+                all_hum_embeddings.append(hum_embeddings)
+
+                all_song_labels.extend(list(song_labels.detach().cpu().numpy()))
+                all_hum_labels.extend(list(hum_labels.detach().cpu().numpy()))
+
+        all_song_embeddings = np.concatenate(all_song_embeddings, axis = 0)
+        all_hum_embeddings = np.concatenate(all_hum_embeddings, axis = 0)
+
+        all_song_labels = np.array(all_song_labels)
+        all_hum_labels = np.array(all_hum_labels)
+
+        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, all_song_embeddings, 
+                all_hum_embeddings, all_song_labels, all_hum_labels)
+
         logger.info(f'MRR ON TRAIN" {mrr}')
     
     def evaluate_on_val(self, ) -> None:
         self.model.eval()
+        all_song_embeddings = []
+        all_hum_embeddings = []
+        all_song_labels = []
+        all_hum_labels = []
         with torch.no_grad():
-                song_embeddings = self.model(self.val_data[-2]).detach().cpu().numpy()
-                hum_embeddings = self.model(self.val_data[-1]).detach().cpu().numpy()     
+            for song_tensor, hum_tensor, song_labels, hum_labels in self.val_data:
+                song_embeddings = self.model(song_tensor.to(self.device)).detach().cpu().numpy()
+                hum_embeddings = self.model(hum_tensor.to(self.device)).detach().cpu().numpy()
 
-        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, song_embeddings,
-                        hum_embeddings, self.val_data[0], self.val_data[1]).evaluate()
+                all_song_embeddings.append(song_embeddings)
+                all_hum_embeddings.append(hum_embeddings)
 
-        logger.info(f'MRR ON VAL: {mrr}')
+                all_song_labels.extend(list(song_labels.detach().cpu().numpy()))
+                all_hum_labels.extend(list(hum_labels.detach().cpu().numpy()))
+
+        all_song_embeddings = np.concatenate(all_song_embeddings, axis = 0)
+        all_hum_embeddings = np.concatenate(all_hum_embeddings, axis = 0)
+
+        all_song_labels = np.array(all_song_labels)
+        all_hum_labels = np.array(all_hum_labels)
+
+        mrr = faiss_comparer.FaissEvaluator(args.embedding_dim, all_song_embeddings, 
+                all_hum_embeddings, all_song_labels, all_hum_labels)
+
+        logger.info(f'MRR ON VAL" {mrr}')
+    
 
     def save_model(self, current_epoch: Union[int, str]) -> None:
         """save the current model into self.save_model_path"""

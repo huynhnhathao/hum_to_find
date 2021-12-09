@@ -1,4 +1,3 @@
-#lstm embedder arguments
 """
 This branch ideas:
 
@@ -75,11 +74,11 @@ bidirectional = True
 proj_size = 512
 
 # resnet1d arguments
-base_filters = 32
+base_filters = 16
 kernel_size = 5
 stride = 1
 groups = 1
-n_blocks = 23
+n_blocks = 24
 embedding_dim = 512
 
 
@@ -97,3 +96,10 @@ sample_len = 1100
 # len for each chunk of sample in second
 chunk_len = 4
 hop_len = 0.5
+
+# GPU usage report
+# print(torch.cuda.get_device_name(0))
+# print('-'*100)
+# print('Memory Usage:')
+# print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+# print('Cached:   ', round(torch.cuda.memory_cached(0)/1024**3,1), 'GB')

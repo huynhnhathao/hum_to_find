@@ -289,7 +289,7 @@ class ResNet1D(nn.Module):
         out = self.dense(out)
         # L2 normalize embeddings
         out = F.normalize(out, p=2, dim=1)
-        
+
         if self.verbose:
             print('dense', out.shape)
         # out = self.softmax(out)
