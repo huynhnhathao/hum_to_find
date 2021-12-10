@@ -73,7 +73,7 @@ batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
 eval_each_num_epochs = 1
 checkpoint_epochs = 1
-alpha_triplet_loss = 2.0
+alpha_triplet_loss = 4.0
 
 # Model arguments
 input_size = 1
