@@ -65,7 +65,7 @@ elif TRAIN_ON == 'kaggle':
     train_data_path = './hum_to_find/crepe_freq/train_data.pkl'
     val_data_path = './hum_to_find/crepe_freq/val_data.pkl'
     save_model_path = './'
-    pretrained_model_path = '../input/checkpoint'
+    pretrained_model_path = '../input/checkpoint/model_epoch13.pt'
     
 # Trainer 
 epochs = 10000
