@@ -76,7 +76,7 @@ bidirectional = True
 proj_size = 512
 
 # resnet1d arguments
-base_filters = 16
+base_filters = 8
 kernel_size = 8
 stride = 2
 groups = 1
@@ -94,7 +94,7 @@ MAX = 600
 LOW = -1
 HIGH = 1
 scaler = lambda x: LOW + ((x - MIN)*(HIGH-LOW))/(MAX-MIN)
-sample_len = 1100
+sample_len = 1000
 # len for each chunk of sample in second
 chunk_len = 8
 hop_len = 0.5
