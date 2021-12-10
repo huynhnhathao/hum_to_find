@@ -40,7 +40,7 @@ preprocessing steps:
 # log_file_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find\core'
 # save_model_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find'
 
-TRAIN_ON = 'colab'
+TRAIN_ON = 'kaggle'
 #colab path arguments
 if TRAIN_ON == 'colab':
     log_file_path = '/content/drive/MyDrive/hum_project/log.txt'
@@ -58,6 +58,14 @@ elif TRAIN_ON == 'home':
     val_data_path = r'C:\Users\ASUS\Desktop\hum\data\crepe_freq\crepe_freq\val_data.pkl'
     save_model_path = r'C:\Users\ASUS\Desktop\hum\data'
     pretrained_model_path = r'C:\Users\ASUS\Desktop\hum\data\model_epoch2500.pt'
+
+elif TRAIN_ON == 'kaggle':
+    log_file_path = './log.txt'
+
+    train_data_path = './hum_to_find/crepe_freq/train_data.pkl'
+    val_data_path = './hum_to_find/crepe_freq/val_data.pkl'
+    save_model_path = './'
+    pretrained_model_path = '../input/checkpoint'
     
 # Trainer 
 epochs = 10000
