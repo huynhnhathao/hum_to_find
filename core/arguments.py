@@ -106,7 +106,7 @@ sample_len = 1100
 # len for each chunk of sample in second
 chunk_len = 8
 hop_len = 0.5
-epoch_hack = 50
+epoch_hack = 100
 # GPU usage report
 # print(torch.cuda.get_device_name(0))
 # print('-'*100)
