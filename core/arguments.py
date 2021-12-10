@@ -77,7 +77,7 @@ proj_size = 512
 
 # resnet1d arguments
 base_filters = 8
-kernel_size = 8
+kernel_size = 10
 stride = 2
 groups = 1
 n_blocks = 28
