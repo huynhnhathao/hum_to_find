@@ -65,7 +65,7 @@ elif TRAIN_ON == 'kaggle':
     train_data_path = './hum_to_find/crepe_freq/train_data.pkl'
     val_data_path = './hum_to_find/crepe_freq/val_data.pkl'
     save_model_path = './'
-    pretrained_model_path = '../input/checkpoint/model_epoch13.pt'
+    pretrained_model_path = None
     
 # Trainer 
 epochs = 10000
@@ -85,10 +85,10 @@ proj_size = 512
 
 # resnet1d arguments
 base_filters = 16
-kernel_size = 8
+kernel_size = 10
 stride = 2
 groups = 1
-n_blocks = 28
+n_blocks = 26
 embedding_dim = 512
 
 
@@ -102,7 +102,7 @@ MAX = 600
 LOW = -1
 HIGH = 1
 scaler = lambda x: LOW + ((x - MIN)*(HIGH-LOW))/(MAX-MIN)
-sample_len = 1100
+sample_len = 1000
 # len for each chunk of sample in second
 chunk_len = 8
 hop_len = 0.5
