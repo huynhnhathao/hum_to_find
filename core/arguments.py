@@ -62,13 +62,13 @@ elif TRAIN_ON == 'home':
 elif TRAIN_ON == 'kaggle':
     log_file_path = './log.txt'
 
-    train_data_path = './hum_to_find/crepe_freq/train_data.pkl'
+    train_data_path = './hum_to_find/crepe_freq/all_train_data.pkl'
     val_data_path = './hum_to_find/crepe_freq/val_data.pkl'
     save_model_path = './'
     pretrained_model_path = None
     
 # Trainer 
-epochs = 7
+epochs = 8
 batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
 eval_each_num_epochs = 1
