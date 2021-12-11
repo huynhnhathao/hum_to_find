@@ -84,11 +84,11 @@ bidirectional = True
 proj_size = 512
 
 # resnet1d arguments
-base_filters = 8
+base_filters = 16
 kernel_size = 10
 stride = 2
 groups = 1
-n_blocks = 30
+n_blocks = 26
 embedding_dim = 512
 
 
