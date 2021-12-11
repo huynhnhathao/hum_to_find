@@ -65,15 +65,15 @@ elif TRAIN_ON == 'kaggle':
     train_data_path = './hum_to_find/crepe_freq/train_data.pkl'
     val_data_path = './hum_to_find/crepe_freq/val_data.pkl'
     save_model_path = './'
-    pretrained_model_path = '../input/checkpoint/model_epoch2.pt'
+    pretrained_model_path = None
     
 # Trainer 
-epochs = 10000
+epochs = 7
 batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
 eval_each_num_epochs = 1
 checkpoint_epochs = 1
-alpha_triplet_loss = 4.0
+alpha_triplet_loss = 2.0
 
 # Model arguments
 input_size = 1
@@ -84,11 +84,11 @@ bidirectional = True
 proj_size = 512
 
 # resnet1d arguments
-base_filters = 16
+base_filters = 8
 kernel_size = 10
 stride = 2
 groups = 1
-n_blocks = 26
+n_blocks = 30
 embedding_dim = 512
 
 
