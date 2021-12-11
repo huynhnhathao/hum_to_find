@@ -65,7 +65,7 @@ batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
 eval_each_num_epochs = 1
 checkpoint_epochs = 1
-alpha_triplet_loss = 2.0
+alpha_triplet_loss = 1.0
 
 # Model arguments
 input_size = 1
@@ -76,11 +76,11 @@ bidirectional = True
 proj_size = 512
 
 # resnet1d arguments
-base_filters = 8
+base_filters = 16
 kernel_size = 10
 stride = 2
 groups = 1
-n_blocks = 28
+n_blocks = 26
 embedding_dim = 512
 
 
@@ -96,7 +96,7 @@ HIGH = 1
 scaler = lambda x: LOW + ((x - MIN)*(HIGH-LOW))/(MAX-MIN)
 sample_len = 1000
 # len for each chunk of sample in second
-chunk_len = 8
+chunk_len = 4
 hop_len = 0.5
 epoch_hack = 50
 # GPU usage report
