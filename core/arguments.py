@@ -65,7 +65,7 @@ elif TRAIN_ON == 'kaggle':
     train_data_path = './hum_to_find/crepe_freq/all_train_data.pkl'
     val_data_path = './hum_to_find/crepe_freq/val_data.pkl'
     save_model_path = './'
-    pretrained_model_path = None
+    pretrained_model_path = '../input/model-ep7/model_epoch7.pt'
     
 # Trainer 
 epochs = 8
@@ -93,7 +93,7 @@ embedding_dim = 512
 
 
 # training arguments
-device = 'cuda'
+device = 'cpu'
 
 # dataset arguments
 # song freq and hum_freq should have different normalization parameters

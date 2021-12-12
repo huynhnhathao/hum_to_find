@@ -42,9 +42,10 @@ class FaissEvaluator:
             # print(value)
             # rearange the value such that nearest neighbors come first
             value = [value[x:x+5] for x in range(0, len(value), 5)]
-            value = [item for sublist in value for item in sublist]
-
-
+            value = np.array(value)
+            value = [value[:, x] for x in range(len(value[0]))]
+            value = np.concatenate(value, axis = 0)
+            
             this_neighbors = []
             song_ids, counts = np.unique(value, return_counts = True)
             sorted_args = np.argsort(counts)
