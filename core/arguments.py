@@ -68,7 +68,7 @@ elif TRAIN_ON == 'kaggle':
     pretrained_model_path = '../input/model-ep7/model_epoch7.pt'
     
 # Trainer 
-epochs = 8
+epochs = 10
 batch_size = 128 # the actual batchsize will double this
 learning_rate = 0.001
 eval_each_num_epochs = 1
@@ -93,7 +93,7 @@ embedding_dim = 512
 
 
 # training arguments
-device = 'cpu'
+device = 'cuda'
 
 # dataset arguments
 # song freq and hum_freq should have different normalization parameters
@@ -104,7 +104,7 @@ HIGH = 1
 scaler = lambda x: LOW + ((x - MIN)*(HIGH-LOW))/(MAX-MIN)
 sample_len = 1000
 # len for each chunk of sample in second
-chunk_len = 8
+chunk_len = 12
 hop_len = 0.5
 epoch_hack = 200
 # GPU usage report
