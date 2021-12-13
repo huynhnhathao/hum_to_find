@@ -102,7 +102,7 @@ MAX = 600
 LOW = -1
 HIGH = 1
 scaler = lambda x: LOW + ((x - MIN)*(HIGH-LOW))/(MAX-MIN)
-sample_len = 1000
+sample_len = 1200
 # len for each chunk of sample in second
 chunk_len = 12
 hop_len = 0.5
