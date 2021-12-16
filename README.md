@@ -66,7 +66,7 @@ But then, I thought that instead of hoping the model to learn about melody, pitc
 
 With that new idea, I search Google and found CREPE, a pretrained model to extract fundamental frequencies on raw audios. I decided to use that model as a preprocessing step on my data.
 
-Let's take a look at transformed (song, hum) after transformed by CREPE:
+Let's take a look at the transformed (song, hum) by CREPE:
 
 ![download](README.assets/download.png)
 
