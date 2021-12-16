@@ -105,3 +105,5 @@ My best submission come from a model with the following configuration:
 
 That's it. My solution got 0.5 MRR on public leaderboard, again is not that good, but I bet it because of the ranking phase, I don't have a good ranking model, but we know one thing from this project is that the embedding model works!
 
+## Final words
+I didn't orgainze all the code so that you can run it on one run, but the code in one file is perfecty working, and if you interested in this project you should go through every file yourself, that's the best way to learn new stuffs.
