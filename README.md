@@ -76,7 +76,7 @@ Now let's take a look at spectrogram of one tuple (song, audio), taken from the 
 
 ![img](README.assets/image3.png)
 
-You can observe yourself that in the CREPE transformed features, there is a slight mismatch between the hum and song features, but they do match to some degree if they have the same melody! On the other hand, looks at the spectrogram, can you spot the similarity? Now I am not say that if we can not spot the similarity then the same as the model, what I am trying to say is that the model's life will much easier if we use the CREPE frequencies.
+You can observe yourself that in the CREPE transformed features, there is a slight mismatch between the hum and song features, but they do match to some degree if they have the same melody! On the other hand, looks at the spectrogram, can you spot the similarity? Now I am not saying that if we can not spot the similarity then the same as the model, what I am trying to say is that the model's life will much easier if we use the CREPE frequencies.
 
 Next, I train a Resnet1d on 2600 pairs of (hum, song), compare with naïve nearest neighbor search on L2 distance give me ~0.27 MRR on public leaderboard and ~0.4x MRR on my validation set. This means that the embedding model worked, what I need to do next is just find a better model parameters and a better ranking algorithm.
 
