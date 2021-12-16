@@ -66,6 +66,18 @@ But then, I thought that instead of hoping the model to learn about melody, pitc
 
 With that new idea, I search Google and found CREPE, a pretrained model to extract fundamental frequencies on raw audios. I decided to use that model as a preprocessing step on my data.
 
+Let's take a look at transformed (song, hum) after transformed by CREPE:
+
+![download](README.assets/download.png)
+
+The x axis is the time axis, each step worth 10 milliseconds, which means 1200 equals 12seconds.
+
+Now let's take a look at spectrogram of one tuple (song, audio), taken from the Google blog post:
+
+![img](README.assets/image3.png)
+
+You can observe yourself that in the CREPE transformed features, there is a slight mismatch between the hum and song features, but they do match to some degree if they have the same melody! On the other hand, looks at the spectrogram, can you spot the similarity? Now I am not say that if we can not spot the similarity then the same as the model, what I am trying to say is that the model's life will much easier if we use the CREPE frequencies.
+
 Next, I train a Resnet1d on 2600 pairs of (hum, song), compare with naïve nearest neighbor search on L2 distance give me ~0.27 MRR on public leaderboard and ~0.4x MRR on my validation set. This means that the embedding model worked, what I need to do next is just find a better model parameters and a better ranking algorithm.
 
 Why does the model perform much worse on public test compare to local validation set, you ask? Well I'm glad you ask, because in the validation set we have already aligned tuple of (hum, song) (although not perfectly), each hum/song is about 10secs, but in the public test set the hummed audios are about 10secs but the provided recorded songs are about more than 30secs, which means we have to find a way to slide and match the hummed audios to the recorded songs, which eventually degrade the MRR.
