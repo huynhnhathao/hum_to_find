@@ -1,6 +1,14 @@
 # Hum to find your song
 My attempts to the Zalo AI challenge 2021. My solution got 0.5 [Mean reciprocal rank](https://en.wikipedia.org/wiki/Mean_reciprocal_rank) on public leaderboard, ranked 19th, which is not that good but I decided to share my project and my experimental results anyway.
 
+## In this repository
+- core/ contains all the code for training and preprocessing
+- crepe_freq/ contains all the transformed data from raw audio wave to fundamental frequencies
+- meta_data/ contains the data annotations
+- template_models/ contains an example of a Pytorch model on MNIST, don't care about it.
+
+*The full data is not mine, I can not share it, but do share the transformed CREPE data anyway*
+
 ## The task
 
 Given a ~12secs hum melody of a song, find a song in your database that the user is trying to express. Your database may very large and your hum query may not accurate.
