@@ -48,6 +48,8 @@ In a short way, my solution is:
 2. Train a Resnet1d on those fundamental frequencies with triplet loss to create embeddings such that song and hum audios are near to each others if they refer to the same song id.
 3. Transform the whole database of music into database of embeddings using the trained Resnet1d, then given a hum embedding, use Facebook's faiss to search for K nearest embeddings. 
 4. Use some heuristic to rank the retrieved embeddings, which's not the best way.
+
+
 There are at least two things for this retrieval system to work well:
 
 1. Good embeddings
