@@ -13,10 +13,6 @@ My attempts to the Zalo AI challenge 2021. My solution got 0.5 [Mean reciprocal 
 
 Given a ~12secs hum melody of a song, find a song in your database that the user is trying to express. Your database may very large and your hum query may not accurate.
 
-## Interesting observations
-My experimental results showed that, with embedding length = 512 for 8seconds of audio:
-- If you don't normalized the final embedding vectors and train with triplet loss using alpha = 2.0, then the model works to some degree, it can push the negative samples away from the anchor samples and pull the positive samples closer, not perfectly but it works to some degree. However, the distance between embedding vectors will very large (depends on how do you define large and small), around 2000.
-- If you normailize it as mentioned in the Facenet paper, then [the maximum distance between 2 vectors is 4.0](https://stats.stackexchange.com/questions/248511/purpose-of-l2-normalization-for-triplet-network). But I tried normalize embedding vectors and train with triplet loss with alpha = 2.0, 1.0 and it never works. I don't know why to be honest!
 
 ## My solution
 
@@ -43,6 +39,14 @@ In a short way, my solution is:
 2. Train a Resnet1d on those fundamental frequencies with triplet loss to create embeddings such that song and hum audios are near to each others if they refer to the same song id.
 3. Transform the whole database of music into database of embeddings using the trained Resnet1d, then given a hum embedding, use Facebook's faiss to search for K nearest embeddings. 
 4. Use some heuristic to rank the retrieved embeddings, which's not the best way.
+
+
+## Interesting observations
+My experimental results showed that, with embedding length = 512 for 8seconds of audio:
+- If you don't normalized the final embedding vectors and train with triplet loss using alpha = 2.0, then the model works to some degree, it can push the negative samples away from the anchor samples and pull the positive samples closer, not perfectly but it works to some degree. However, the distance between embedding vectors will very large (depends on how do you define large and small), around 2000.
+- If you normailize it as mentioned in the Facenet paper, then [the maximum distance between 2 vectors is 4.0](https://stats.stackexchange.com/questions/248511/purpose-of-l2-normalization-for-triplet-network). But I tried normalize embedding vectors and train with triplet loss with alpha = 2.0, 1.0 and it never works. I don't know why to be honest!
+
+
 
 There are at least two things for this retrieval system to work well:
 
