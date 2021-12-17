@@ -100,7 +100,7 @@ Let's think about the problem, a user only hum 10secs or less about one song mel
 There are two way to rank the K nearest song's chunks in this stage, depends on the way you split you data in the previous stage:
 
 1. If you split your hummed audios into multiple chunks of length a few seconds as in the Google blog posts, then you have the benefit of reduce false positives as I have mentioned above, and you can use a probabilistic model to rank the results as mentioned in the Now playing paper, cited above. 
-2. If you don't split your data, then one hummed audio has one single embedding vectors of d dimension, and one song can have multiple embedding vectors of dimension d since you split your song into overlapping chunks. The next question is how to rank the K nearest song's chunks embeddings, knowing that there will have a lot of false positive?
+2. If you don't split your data, then one hummed audio has one single embedding vectors of d dimension, and one song can has multiple embedding vectors of dimension d since you split your song into overlapping chunks. The next question is how to rank the K nearest song's chunks embeddings, knowing that there will have a lot of false positive?
 
 My solution belongs to the above second situation, and here is the way I solve the ranking problem: First assume that if the embedding model is good, so if a hum audio refer to a song, then some of the song's chunks embeddings will be in the K nearest neighbors of that hum's embedding. Since the song's chunks are overlapping by a a length of hop lengths, which is usually pretty small, even if the (hum, song) embeddings misaligned a few seconds we still hope that it will near to each others in the embeddings space.
 
