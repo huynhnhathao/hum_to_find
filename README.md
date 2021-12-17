@@ -14,8 +14,7 @@ My attempts to the Zalo AI challenge 2021. My solution got 0.5 [Mean reciprocal 
 Given a ~12secs hum melody of a song, find a song in your database that the user is trying to express. Your database may very large and your hum query may not accurate.
 
 
-## My solution
-
+## Resources
 First, there are some resources that I  researched and based my solution on:
 
 1. [Now Playing: Continuous low-power music recognition.](https://arxiv.org/abs/1711.10958)
@@ -46,6 +45,7 @@ My experimental results showed that, with embedding length = 512 for 8seconds of
 - If you don't normalized the final embedding vectors and train with triplet loss using alpha = 2.0, then the model works to some degree, it can push the negative samples away from the anchor samples and pull the positive samples closer, not perfectly but it works to some degree. However, the distance between embedding vectors will very large (depends on how do you define large and small), around 2000.
 - If you normailize it as mentioned in the Facenet paper, then [the maximum distance between 2 vectors is 4.0](https://stats.stackexchange.com/questions/248511/purpose-of-l2-normalization-for-triplet-network). But I tried normalize embedding vectors and train with triplet loss with alpha = 2.0, 1.0 and it never works. I don't know why to be honest!
 
+## My solution
 
 
 There are at least two things for this retrieval system to work well:
