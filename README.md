@@ -95,7 +95,7 @@ Why does the model perform much worse on public test compare to local validation
 
 ## Good Ranking algorithm 
 
-Let's think about the problem, a user only hum 10secs or less about one song melody, but our database have thousand of songs with full length, about 4 minutes each. We can not just compare two different length audio together, we need to split the full song into many overlapping chunks and consider the hop length as a hand-tune hyperparameter. 
+Let's think about the problem, a user only hum 10secs or less about one song melody, but our database has thousand of songs with full length, about 4 minutes each. We can not just compare two different length audio together, we need to split the full song into many overlapping chunks and consider the hop length as a hand-tune hyperparameter. 
 
 There are two way to rank the K nearest song's chunks in this stage, depends on the way you split you data in the previous stage:
 
