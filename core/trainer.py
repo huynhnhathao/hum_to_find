@@ -15,7 +15,7 @@ import numpy as np
 
 from triplet_mining_online import batch_hard_triplet_loss, batch_all_triplet_loss
 import arguments as args
-# import faiss_comparer
+import faiss_comparer
 
 stream_handler = logging.StreamHandler()
 file_handler = logging.FileHandler(args.log_file_path)
@@ -250,11 +250,11 @@ class Trainer:
             if (i+1) % self.checkpoint_epochs == 0:
                 self.save_model(i+1)
 
-            # if (i + 1) % self.eval_each_num_epochs == 0:
-            #     self.evaluate_on_train() 
+            if (i + 1) % self.eval_each_num_epochs == 0:
+                self.evaluate_on_train() 
 
-            # if (i+1) % args.eval_each_num_epochs == 0:
-            #     self.evaluate_on_val()
+            if (i+1) % args.eval_each_num_epochs == 0:
+                self.evaluate_on_val()
         
         self.save_model('last_epoch')
         logger.info('Finish training.')

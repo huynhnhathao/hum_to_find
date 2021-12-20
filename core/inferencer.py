@@ -110,7 +110,7 @@ class Inferencer:
         return I
 
     
-    def do_inference(self, ) -> pd.DataFrame:
+    def do_inference(self, ) -> Dict:
         # preprocess data
         hum_data = self._preprocess_hum_freq()
         song_ids, song_freq = self._preprocess_song_freq()

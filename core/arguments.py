@@ -40,7 +40,7 @@ preprocessing steps:
 # log_file_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find\core'
 # save_model_path = r'C:\Users\ASUS\Desktop\repositories\hum_to_find'
 
-TRAIN_ON = 'kaggle'
+TRAIN_ON = 'colab'
 #colab path arguments
 if TRAIN_ON == 'colab':
     log_file_path = '/content/drive/MyDrive/hum_project/log.txt'
