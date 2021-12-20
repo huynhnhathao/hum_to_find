@@ -13,8 +13,8 @@ My attempts to the Zalo AI challenge 2021. My solution got 0.5 [Mean reciprocal 
 
 Given a ~12secs hum melody of a song, find a song in your database that the user is trying to express. Your database may very large and your hum query may not accurate.
 
-## My solution
 
+## Resources
 First, there are some resources that I  researched and based my solution on:
 
 1. [Now Playing: Continuous low-power music recognition.](https://arxiv.org/abs/1711.10958)
@@ -32,12 +32,23 @@ Second, some repositories that I have used in my solutions:
 
 Take a look at the cited resources to better understand the next stuffs.
 
+
+
+
+## Interesting observations
+My experimental results showed that, with embedding length = 512 for 8seconds of audio:
+- If you don't normalized the final embedding vectors and train with triplet loss using alpha = 2.0, then the model works to some degree, it can push the negative samples away from the anchor samples and pull the positive samples closer, not perfectly but it works. However, the distance between embedding vectors will very large (depends on how do you define large and small), around 2000.
+- If you normailize it as mentioned in the Facenet paper, then [the maximum distance between 2 vectors is 4.0](https://stats.stackexchange.com/questions/248511/purpose-of-l2-normalization-for-triplet-network). But I tried normalize embedding vectors and train with triplet loss with alpha = 2.0, 1.0 and it never works. I don't know why to be honest!
+
+## My solution
+
 In a short way, my solution is:
 
 1. Use CREPE to predict the fundamental frequencies of both the hum query audio and the song audio.
 2. Train a Resnet1d on those fundamental frequencies with triplet loss to create embeddings such that song and hum audios are near to each others if they refer to the same song id.
 3. Transform the whole database of music into database of embeddings using the trained Resnet1d, then given a hum embedding, use Facebook's faiss to search for K nearest embeddings. 
 4. Use some heuristic to rank the retrieved embeddings, which's not the best way.
+
 
 There are at least two things for this retrieval system to work well:
 
@@ -66,7 +77,7 @@ But then, I thought that instead of hoping the model to learn about melody, pitc
 
 With that new idea, I search Google and found CREPE, a pretrained model to extract fundamental frequencies on raw audios. I decided to use that model as a preprocessing step on my data.
 
-Let's take a look at transformed (song, hum) after transformed by CREPE:
+Let's take a look at the transformed (song, hum) by CREPE:
 
 ![download](README.assets/download.png)
 
@@ -76,20 +87,20 @@ Now let's take a look at spectrogram of one tuple (song, audio), taken from the 
 
 ![img](README.assets/image3.png)
 
-You can observe yourself that in the CREPE transformed features, there is a slight mismatch between the hum and song features, but they do match to some degree if they have the same melody! On the other hand, looks at the spectrogram, can you spot the similarity? Now I am not say that if we can not spot the similarity then the same as the model, what I am trying to say is that the model's life will much easier if we use the CREPE frequencies.
+You can observe yourself that in the CREPE transformed features, there is a slight mismatch between the hum and song features, but they do match to some degree if they have the same melody! On the other hand, looks at the spectrogram, can you spot the similarity? Now I am not saying that if we can not spot the similarity then the same as the model, what I am trying to say is that the model's life will much easier if we use the CREPE frequencies.
 
-Next, I train a Resnet1d on 2600 pairs of (hum, song), compare with naïve nearest neighbor search on L2 distance give me ~0.27 MRR on public leaderboard and ~0.4x MRR on my validation set. This means that the embedding model worked, what I need to do next is just find a better model parameters and a better ranking algorithm.
+Next, I trained a Resnet1d on 2600 pairs of (hum, song), using naïve nearest neighbor search on L2 distance give me ~0.27 MRR on public leaderboard and ~0.4x MRR on my validation set. This means that the embedding model worked, what I need to do next is to find a better model parameters and a better ranking algorithm.
 
 Why does the model perform much worse on public test compare to local validation set, you ask? Well I'm glad you ask, because in the validation set we have already aligned tuple of (hum, song) (although not perfectly), each hum/song is about 10secs, but in the public test set the hummed audios are about 10secs but the provided recorded songs are about more than 30secs, which means we have to find a way to slide and match the hummed audios to the recorded songs, which eventually degrade the MRR.
 
 ## Good Ranking algorithm 
 
-Let's think about the problem, a user only hum 10secs or less about one song melody, but our database have thousand of songs with full length, about 4 minutes each. We can not just compare two different length audio together, we need to split the full song into many overlapping chunks and consider the hop length as a hand-tune hyperparameter. 
+Let's think about the problem, a user only hum 10secs or less about one song melody, but our database has thousand of songs with full length, about 4 minutes each. We can not just compare two different length audio together, we need to split the full song into many overlapping chunks and consider the hop length as a hand-tune hyperparameter. 
 
 There are two way to rank the K nearest song's chunks in this stage, depends on the way you split you data in the previous stage:
 
 1. If you split your hummed audios into multiple chunks of length a few seconds as in the Google blog posts, then you have the benefit of reduce false positives as I have mentioned above, and you can use a probabilistic model to rank the results as mentioned in the Now playing paper, cited above. 
-2. If you don't split your data, then one hummed audio has one single embedding vectors of d dimension, and one song can have multiple embedding vectors of dimension d since you split your song into overlapping chunks. The next question is how to rank the K nearest song's chunks embeddings, knowing that there will have a lot of false positive?
+2. If you don't split your data, then one hummed audio has one single embedding vectors of d dimension, and one song can has multiple embedding vectors of dimension d since you split your song into overlapping chunks. The next question is how to rank the K nearest song's chunks embeddings, knowing that there will have a lot of false positive?
 
 My solution belongs to the above second situation, and here is the way I solve the ranking problem: First assume that if the embedding model is good, so if a hum audio refer to a song, then some of the song's chunks embeddings will be in the K nearest neighbors of that hum's embedding. Since the song's chunks are overlapping by a a length of hop lengths, which is usually pretty small, even if the (hum, song) embeddings misaligned a few seconds we still hope that it will near to each others in the embeddings space.
 
@@ -101,7 +112,10 @@ My best submission come from a model with the following configuration:
 
 - Tuple of (song, hum) has ~12secs length each in the given data, when training we'll random crop the sample of length 8secs and train, which I thinks will give more samples for training and make the model more robust.
 - Train for 1400 epochs (on Kaggle notebook, thanks Kaggle), it took about 2 hours.
+- Embedding lenths = 512, model size about 66M trainable parameters, ~260MB.
 - The training time is not that long, you said, well the transforming from raw wave audio to frequencies step using CREPE is where it takes times.
 
 That's it. My solution got 0.5 MRR on public leaderboard, again is not that good, but I bet it because of the ranking phase, I don't have a good ranking model, but we know one thing from this project is that the embedding model works!
 
+## Final words
+I didn't orgainze all the code so that you can run it on one run, but the code in every file is perfecty working, and if you interested in this project you should go through every file yourself, that's the best way to learn new stuffs.
