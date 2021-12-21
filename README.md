@@ -7,6 +7,16 @@ My attempts to the Zalo AI challenge 2021. My solution got 0.5 [Mean reciprocal 
 - meta_data/ contains the data annotations
 - template_models/ contains an example of a Pytorch model on MNIST, don't care about it.
 
+- core/arguments.py: set arguments for trainer class, dataset class, model hyperparameters and paths to data
+- core/crepe_dataset.py dataset class for model training
+- core/faiss_comparer.py defined FaissEvaluator class, which use which use faiss library to search for nearest neighbors
+- core/inferencer.py used to run inference on val/test dataset, using a trained model
+- core/resnet1d.py defined a resnet1d in pytorch
+- core/trainer.py defined a trainer class to train model
+- core/triplet_online_mining.py defined the triplet loss
+- core/predictor.py defined a heuristic algorithm to rank the retrieved K nearest song_ids
+- crepe_transformer.ipynb transform .mp3 songs and hum audio to CREPE frequencies
+
 *The full data is not mine, I can not share it, but do share the transformed CREPE data anyway*
 
 ## The task
