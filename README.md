@@ -122,7 +122,7 @@ My best submission come from a model with the following configuration:
 
 - Tuple of (song, hum) has ~12secs length each in the given data, when training we'll random crop the sample of length 8secs and train, which I thinks will give more samples for training and make the model more robust.
 - Train for 1400 epochs (on Kaggle notebook, thanks Kaggle), it took about 2 hours.
-- Embedding lenths = 512, model size about 66M trainable parameters, ~260MB.
+- Embedding length = 512, model size about 66M trainable parameters, ~260MB.
 - The training time is not that long, you said, well the transforming from raw wave audio to frequencies step using CREPE is where it takes times.
 
 That's it. My solution got 0.5 MRR on public leaderboard, again is not that good, but I bet it because of the ranking phase, I don't have a good ranking model, but we know one thing from this project is that the embedding model works!
