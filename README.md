@@ -9,7 +9,7 @@ My attempts to the Zalo AI challenge 2021. My solution got 0.5 [Mean reciprocal 
 
 - core/arguments.py: set arguments for trainer class, dataset class, model hyperparameters and paths to data
 - core/crepe_dataset.py dataset class for model training
-- core/faiss_comparer.py defined FaissEvaluator class, which use which use faiss library to search for nearest neighbors
+- core/faiss_comparer.py defined FaissEvaluator class, which use faiss library to search for nearest neighbors
 - core/inferencer.py used to run inference on val/test dataset, using a trained model
 - core/resnet1d.py defined a resnet1d in pytorch
 - core/trainer.py defined a trainer class to train model
