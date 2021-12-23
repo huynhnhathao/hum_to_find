@@ -7,6 +7,8 @@ My attempts to the Zalo AI challenge 2021. My solution got 0.5 [Mean reciprocal 
 - meta_data/ contains the data annotations
 - template_models/ contains an example of a Pytorch model on MNIST, don't care about it.
 
+Details on files:
+
 - core/arguments.py: set arguments for trainer class, dataset class, model hyperparameters and paths to data
 - core/crepe_dataset.py dataset class for model training
 - core/faiss_comparer.py defined FaissEvaluator class, which use faiss library to search for nearest neighbors
