@@ -23,7 +23,7 @@ Details on files:
 
 ## The task
 
-Given a ~12secs hum melody of a song, find a song in your database that the user is trying to express. Your database may very large and your hum query may not accurate.
+Given a ~12secs hum melody of a song, find a song in your database that the user is trying to express. Your database may be very large and your hum query may be not accurate.
 
 
 ## Resources
