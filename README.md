@@ -17,9 +17,9 @@ Details on files:
 - core/trainer.py defined a trainer class to train model
 - core/triplet_online_mining.py defined the triplet loss
 - core/predictor.py defined a heuristic algorithm to rank the retrieved K nearest song_ids
-- crepe_transformer.ipynb transform .mp3 songs and hum audio to CREPE frequencies
+- crepe_transformer.ipynb transform .mp3 song and hum audios to fundamental frequencies using CREPE
 
-*The full data is not mine, I can not share it, but do share the transformed CREPE data anyway*
+*The full data is not mine, I can not share it, but do share the transformed fundamental frequencies data anyway*
 
 ## The task
 
